@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2021 Henry++
+// Copyright (c) 2016-2022 Henry++
 
 #pragma once
 
@@ -48,6 +48,7 @@ DECLSPEC_SELECTANY R_QUEUED_LOCK lock_apply = PR_QUEUED_LOCK_INIT;
 DECLSPEC_SELECTANY R_QUEUED_LOCK lock_rules = PR_QUEUED_LOCK_INIT;
 DECLSPEC_SELECTANY R_QUEUED_LOCK lock_rules_config = PR_QUEUED_LOCK_INIT;
 DECLSPEC_SELECTANY R_QUEUED_LOCK lock_loglist = PR_QUEUED_LOCK_INIT;
+DECLSPEC_SELECTANY R_QUEUED_LOCK lock_notify = PR_QUEUED_LOCK_INIT;
 DECLSPEC_SELECTANY R_QUEUED_LOCK lock_profile = PR_QUEUED_LOCK_INIT;
 DECLSPEC_SELECTANY R_QUEUED_LOCK lock_transaction = PR_QUEUED_LOCK_INIT;
 
@@ -73,7 +74,9 @@ DECLSPEC_SELECTANY const LONG64 timer_array[] =
 	1 * 3600,
 	2 * 3600,
 	4 * 3600,
-	6 * 3600
+	6 * 3600,
+	12 * 3600,
+	24 * 3600
 };
 
 // dropped events callback subscription (win7+)
@@ -84,6 +87,8 @@ DECLSPEC_SELECTANY const LONG64 timer_array[] =
 #ifndef FWP_DIRECTION_OUT
 #define FWP_DIRECTION_OUT 0x00003901L
 #endif
+
+#define WM_NOTIFICATION (WM_APP + 21)
 
 #include "controls.h"
 #include "db.h"
@@ -100,4 +105,5 @@ DECLSPEC_SELECTANY const LONG64 timer_array[] =
 #include "search.h"
 #include "security.h"
 #include "timer.h"
+#include "uwp.h"
 #include "wfp.h"

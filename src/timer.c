@@ -1,9 +1,47 @@
 // simplewall
-// Copyright (c) 2016-2021 Henry++
+// Copyright (c) 2016-2022 Henry++
 
 #include "global.h"
 
-VOID _app_timer_set (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app, _In_ LONG64 seconds)
+BOOLEAN _app_istimersactive ()
+{
+	PITEM_APP ptr_app;
+	SIZE_T enum_key;
+
+	enum_key = 0;
+
+	_r_queuedlock_acquireshared (&lock_apps);
+
+	while (_r_obj_enumhashtablepointer (apps_table, &ptr_app, NULL, &enum_key))
+	{
+		if (_app_istimerset (ptr_app))
+		{
+			_r_queuedlock_releaseshared (&lock_apps);
+
+			return TRUE;
+		}
+	}
+
+	_r_queuedlock_releaseshared (&lock_apps);
+
+	return FALSE;
+}
+
+BOOLEAN _app_istimerset (
+	_In_ PITEM_APP ptr_app
+)
+{
+	if (!ptr_app->htimer)
+		return FALSE;
+
+	return !!IsThreadpoolTimerSet (ptr_app->htimer);
+}
+
+VOID _app_timer_set (
+	_In_opt_ HWND hwnd,
+	_Inout_ PITEM_APP ptr_app,
+	_In_ LONG64 seconds
+)
 {
 	PTP_TIMER htimer;
 	FILETIME file_time;
@@ -12,13 +50,7 @@ VOID _app_timer_set (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app, _In_ LONG64 
 
 	if (seconds <= 0)
 	{
-		ptr_app->is_enabled = FALSE;
-		ptr_app->is_haveerrors = FALSE;
-
-		ptr_app->timer = 0;
-
-		if (_app_istimerset (ptr_app->htimer))
-			_app_timer_remove (&ptr_app->htimer);
+		_app_timer_reset (NULL, ptr_app);
 	}
 	else
 	{
@@ -27,7 +59,7 @@ VOID _app_timer_set (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app, _In_ LONG64 
 
 		_r_unixtime_to_filetime (current_time + seconds, &file_time);
 
-		if (_app_istimerset (ptr_app->htimer))
+		if (ptr_app->htimer)
 		{
 			SetThreadpoolTimer (ptr_app->htimer, &file_time, 0, 0);
 			is_created = TRUE;
@@ -52,14 +84,7 @@ VOID _app_timer_set (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app, _In_ LONG64 
 		}
 		else
 		{
-			ptr_app->is_enabled = FALSE;
-			ptr_app->is_haveerrors = FALSE;
-			ptr_app->timer = 0;
-
-			if (_app_istimerset (ptr_app->htimer))
-			{
-				_app_timer_remove (&ptr_app->htimer);
-			}
+			_app_timer_reset (NULL, ptr_app);
 		}
 	}
 
@@ -67,56 +92,42 @@ VOID _app_timer_set (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app, _In_ LONG64 
 		_app_listview_updateitemby_param (hwnd, ptr_app->app_hash, TRUE);
 }
 
-VOID _app_timer_reset (_In_opt_ HWND hwnd, _Inout_ PITEM_APP ptr_app)
+VOID _app_timer_reset (
+	_In_opt_ HWND hwnd,
+	_Inout_ PITEM_APP ptr_app
+)
 {
 	ptr_app->is_enabled = FALSE;
 	ptr_app->is_haveerrors = FALSE;
 
 	ptr_app->timer = 0;
 
-	if (_app_istimerset (ptr_app->htimer))
-	{
-		_app_timer_remove (&ptr_app->htimer);
-	}
+	if (_app_istimerset (ptr_app))
+		_app_timer_remove (ptr_app);
 
 	if (hwnd)
-	{
 		_app_listview_updateitemby_param (hwnd, ptr_app->app_hash, TRUE);
-	}
 }
 
-VOID _app_timer_remove (_Inout_ PTP_TIMER *timer)
+VOID _app_timer_remove (
+	_Inout_ PITEM_APP ptr_app
+)
 {
-	PTP_TIMER current_timer = *timer;
+	PTP_TIMER current_timer;
 
-	*timer = NULL;
+	current_timer = ptr_app->htimer;
 
-	CloseThreadpoolTimer (current_timer);
+	ptr_app->htimer = NULL;
+
+	if (current_timer)
+		CloseThreadpoolTimer (current_timer);
 }
 
-BOOLEAN _app_istimersactive ()
-{
-	PITEM_APP ptr_app;
-	SIZE_T enum_key = 0;
-
-	_r_queuedlock_acquireshared (&lock_apps);
-
-	while (_r_obj_enumhashtablepointer (apps_table, &ptr_app, NULL, &enum_key))
-	{
-		if (_app_istimerset (ptr_app->htimer))
-		{
-			_r_queuedlock_releaseshared (&lock_apps);
-
-			return TRUE;
-		}
-	}
-
-	_r_queuedlock_releaseshared (&lock_apps);
-
-	return FALSE;
-}
-
-VOID CALLBACK _app_timer_callback (_Inout_ PTP_CALLBACK_INSTANCE instance, _Inout_opt_ PVOID context, _Inout_ PTP_TIMER timer)
+VOID CALLBACK _app_timer_callback (
+	_Inout_ PTP_CALLBACK_INSTANCE instance,
+	_Inout_opt_ PVOID context,
+	_Inout_ PTP_TIMER timer
+)
 {
 	HANDLE hengine;
 	HWND hwnd;
@@ -146,7 +157,7 @@ VOID CALLBACK _app_timer_callback (_Inout_ PTP_CALLBACK_INSTANCE instance, _Inou
 
 		_r_obj_addlistitem (rules, ptr_app);
 
-		_wfp_create3filters (hengine, rules, __LINE__, FALSE);
+		_wfp_create3filters (hengine, rules, DBG_ARG, FALSE);
 
 		_r_obj_dereference (rules);
 	}
@@ -166,7 +177,13 @@ VOID CALLBACK _app_timer_callback (_Inout_ PTP_CALLBACK_INSTANCE instance, _Inou
 
 		string = _app_getappdisplayname (ptr_app, TRUE);
 
-		_r_str_printf (buffer, RTL_NUMBER_OF (buffer), L"%s - %s", _r_app_getname (), _r_obj_getstringorempty (string));
+		_r_str_printf (
+			buffer,
+			RTL_NUMBER_OF (buffer),
+			L"%s - %s",
+			_r_app_getname (),
+			_r_obj_getstringorempty (string)
+		);
 
 		_r_tray_popup (hwnd, &GUID_TrayIcon, icon_id, buffer, _r_locale_getstring (IDS_STATUS_TIMER_DONE));
 

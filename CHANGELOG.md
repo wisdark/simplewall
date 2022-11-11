@@ -1,11 +1,45 @@
+v3.6.7 (21 September 2022)
+- added windows update service solution (issue #677, thx @taviso) [win10+]
+- added feature to allow only the requested ip in notification (issue #1265)
+- added 12 and 24 hour timer values (issue #1298)
+- fixed opening editor are overlapped by notification window
+- fixed uwp apps are reset after installing updates (issue #1294)
+- fixed select all with search filter selects everything (issue #1264)
+- fixed loading default icons for services and uwp apps
+- fixed check update option in main menu (issue #1309)
+- fixed port numbers are now verified (issue #1240)
+
+v3.6.6 (12 August 2022)
+- fixed editor does not disable save button when rule name is empty
+- fixed network monitor duplicate calls
+- fixed application crash (issue #1272)
+
+v3.6.5 (11 August 2022)
+- added group for apps with timers
+- display long time in packets log date column
+- fixed uwp packages display name parsing
+- fixed blank notifications (again!) (issue #1009)
+
+v3.6.4 (19 Juny 2022)
+- added focus assistant support (win10rs3+)
+- fixed notification sometimes can lose focus of fullscreen app
+- fixed internal profile loading crash (issue #1228)
+
+v3.6.3 (10 May 2022)
+- fixed installer launches simplewall without asking user (issue #1119)
+- fixed saving unused apps in profile (issue #1216)
+- fixed app crash on create process (issue ##1224)
+- fixed uninstaller delete not all files
+- improved workqueue environment
+- improved threading model
+- fixed internal bugs
+
 v3.6.2 (26 April 2022)
 - added autoinstall non-executable updates feature (issue #1122)
 - added clear search with escape button for editor
 - added fallback for font loading when it does not exists
 - improved uwp packages information loading
-- fixed installer launches simplewall without asking user (issue #1119)
 - fixed restore properties window position
-- fixed blank notification (issue #1009)
 - fixed rule tooltip whitespace
 - fixed internal bugs
 - updated network monitor
@@ -73,7 +107,6 @@ v3.5 (4 October 2021)
 - fixed resolve network addresses can cause crash (issue #1015)
 - fixed notification color issues (issue #1007)
 - fixed update installation (issue #1016)
-- fixed blank notification (issue #1009)
 - fixed version information retrieval
 - fixed workqueue environment
 - fixed internal bugs

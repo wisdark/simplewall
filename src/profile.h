@@ -7,14 +7,16 @@ _Success_ (return)
 BOOLEAN _app_getappinfo (
 	_In_ PITEM_APP ptr_app,
 	_In_ ENUM_INFO_DATA info_data,
-	_Out_ PVOID_PTR buffer_ptr
+	_Out_writes_bytes_all_ (size) PVOID buffer,
+	_In_ SIZE_T size
 );
 
 _Success_ (return)
 BOOLEAN _app_getappinfobyhash (
 	_In_ ULONG_PTR app_hash,
 	_In_ ENUM_INFO_DATA info_data,
-	_Out_ PVOID_PTR buffer_ptr
+	_Out_writes_bytes_all_ (size) PVOID buffer,
+	_In_ SIZE_T size
 );
 
 VOID _app_setappinfo (
@@ -33,14 +35,16 @@ _Success_ (return)
 BOOLEAN _app_getruleinfo (
 	_In_ PITEM_RULE ptr_rule,
 	_In_ ENUM_INFO_DATA info_data,
-	_Out_ PVOID_PTR buffer_ptr
+	_Out_writes_bytes_all_ (size) PVOID buffer,
+	_In_ SIZE_T size
 );
 
 _Success_ (return)
 BOOLEAN _app_getruleinfobyid (
 	_In_ SIZE_T index,
 	_In_ ENUM_INFO_DATA info_data,
-	_Out_ PVOID_PTR buffer_ptr
+	_Out_writes_bytes_all_ (size) PVOID buffer,
+	_In_ SIZE_T size
 );
 
 _Success_ (return != 0)
@@ -106,6 +110,7 @@ COLORREF _app_getappcolor (
 );
 
 VOID _app_freeapplication (
+	_In_opt_ HWND hwnd,
 	_In_ ULONG_PTR app_hash
 );
 
@@ -232,13 +237,15 @@ BOOLEAN _app_isrulesupportedbyos (
 
 VOID _app_profile_initialize ();
 
-PDB_INFORMATION _app_profile_load_fromresource (
-	_In_ LPCWSTR resource_name
+NTSTATUS _app_profile_load_fromresource (
+	_In_ LPCWSTR resource_name,
+	_Out_ PDB_INFORMATION * out_buffer
 );
 
 VOID _app_profile_load_fallback ();
 
 VOID _app_profile_load_internal (
+	_In_opt_ HWND hwnd,
 	_In_ PR_STRING path,
 	_In_ LPCWSTR resource_name,
 	_Out_opt_ PLONG64 timestamp

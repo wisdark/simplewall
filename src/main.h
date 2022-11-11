@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2021 Henry++
+// Copyright (c) 2016-2022 Henry++
 
 #pragma once
 
@@ -20,6 +20,12 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "wintrust.lib")
+
+// log
+#define __FILENAME__ (PathFindFileName (TEXT (__FILE__)))
+
+#define DBG_ARG __FILENAME__, __LINE__
+#define DBG_ARG_VAR file_name, line
 
 // guids
 DEFINE_GUID (GUID_TrayIcon, 0xdab4837e, 0xcb0f, 0x47da, 0x92, 0x22, 0x21, 0x20, 0x74, 0x9f, 0x5c, 0x41);
@@ -57,8 +63,8 @@ typedef enum _ENUM_INFO_DATA
 	INFO_PATH = 1,
 	INFO_BYTES_DATA,
 	INFO_DISPLAY_NAME,
-	INFO_TIMESTAMP_PTR,
-	INFO_TIMER_PTR,
+	INFO_TIMESTAMP,
+	INFO_TIMER,
 	INFO_LISTVIEW_ID,
 	INFO_IS_ENABLED,
 	INFO_IS_READONLY,
@@ -114,8 +120,22 @@ typedef enum _ENUM_INFO_DATA2
 #define SZ_DIRECTION_ANY L"Any"
 #define SZ_DIRECTION_LOOPBACK L"Loopback"
 
-#define SZ_LOG_TITLE L"Date,Username,Path,Address (" SZ_DIRECTION_LOCAL L"),Port (" SZ_DIRECTION_LOCAL L"),Address (" SZ_DIRECTION_REMOTE L"),Port (" SZ_DIRECTION_REMOTE L"),Protocol,Layer,Filter name,Filter ID,Direction,State\r\n"
-#define SZ_LOG_BODY L"\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"#%" TEXT (PRIu64) L"\",\"%s\",\"%s\"\r\n"
+#define SZ_LOG_TITLE L"Date,Username,Path,Address (" SZ_DIRECTION_LOCAL L")," \
+	L"Port (" SZ_DIRECTION_LOCAL L"),Address (" SZ_DIRECTION_REMOTE L"),Port (" SZ_DIRECTION_REMOTE L")," \
+	L"Protocol,Layer,Filter name,Filter ID,Direction,State\r\n"
+
+#define SZ_LOG_BODY L"\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"," \
+	L"\"%s\",\"%s\",\"#%" TEXT (PRIu64) L"\",\"%s\",\"%s\"\r\n"
+
+#define SZ_WARNING_ME L"If you disallow this, you cannot use resolve network addresses option. Continue?"
+#define SZ_WARNING_SVCHOST L"Be careful, through service host (svchost.exe)" \
+	L"internet traffic can let out through unexpected ways. Continue?"
+
+#define SZ_HELP L"\"simplewall.exe -install\" - enable filtering.\r\n" \
+	L"\"simplewall.exe -install -temp\" - enable filtering until reboot.\r\n" \
+	L"\"simplewall.exe -install -silent\" - enable filtering without prompt.\r\n" \
+	L"\"simplewall.exe -uninstall\" - remove all installed filters.\r\n" \
+	L"\"simplewall.exe -help\" - show this message."
 
 #define BACKUP_HOURS_PERIOD _r_calc_hours2seconds (4) // make backup every X hour(s) (default)
 
@@ -147,7 +167,6 @@ typedef enum _ENUM_INFO_DATA2
 #define NOTIFY_SOUND_NAME L"MailBeep"
 
 // default colors
-#define LV_COLOR_TIMER RGB(255, 190, 142)
 #define LV_COLOR_INVALID RGB (255, 125, 148)
 #define LV_COLOR_SPECIAL RGB (255, 255, 170)
 #define LV_COLOR_SIGNED RGB (175, 228, 163)
@@ -192,7 +211,9 @@ typedef struct _STATIC_DATA
 
 	volatile HANDLE hlogfile;
 	volatile HANDLE hnetevent;
+	volatile HANDLE hnotify_evt;
 	volatile HWND hnotification;
+	volatile HICON htray_icon;
 
 	HFONT hfont;
 	HFONT wnd_font;
@@ -201,7 +222,6 @@ typedef struct _STATIC_DATA
 	HWND htoolbar;
 	HWND hsearchbar;
 
-	ULONG_PTR color_timer;
 	ULONG_PTR color_invalid;
 	ULONG_PTR color_special;
 	ULONG_PTR color_signed;

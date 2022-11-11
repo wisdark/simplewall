@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2021 Henry++
+// Copyright (c) 2016-2022 Henry++
 
 #include "global.h"
 
@@ -41,17 +41,7 @@ VOID _app_loginit (
 
 	if (_r_fs_isvalidhandle (new_handle))
 	{
-		if (GetLastError () != ERROR_ALREADY_EXISTS)
-		{
-			BYTE bom[] = {0xFF, 0xFE};
-			ULONG unused;
-
-			WriteFile (new_handle, bom, sizeof (bom), &unused, NULL); // write utf-16 le byte order mask
-		}
-		else
-		{
-			_r_fs_setpos (new_handle, 0, FILE_END);
-		}
+		_app_loginitfile (new_handle);
 
 		current_handle = InterlockedCompareExchangePointer (
 			&config.hlogfile,
@@ -66,18 +56,47 @@ VOID _app_loginit (
 	_r_obj_dereference (log_path);
 }
 
+VOID _app_loginitfile (
+	_In_ HANDLE hfile
+)
+{
+	BYTE bom[] = {0xFF, 0xFE};
+	LONG64 file_size;
+	ULONG unused;
+
+	file_size = _r_fs_getsize (hfile);
+
+	if (!file_size)
+	{
+		// write utf-16 le byte order mask
+		WriteFile (hfile, bom, sizeof (bom), &unused, NULL);
+
+		// write csv header
+		WriteFile (
+			hfile,
+			SZ_LOG_TITLE,
+			(ULONG)(_r_str_getlength (SZ_LOG_TITLE) * sizeof (WCHAR)),
+			&unused,
+			NULL
+		);
+	}
+	else
+	{
+		// move to eof
+		_r_fs_setpos (hfile, file_size);
+	}
+}
+
 ULONG_PTR _app_getloghash (
-	_In_ HWND hwnd,
 	_In_ PITEM_LOG ptr_log
 )
 {
 	PR_STRING log_string;
 	ULONG_PTR log_hash;
 
-	UNREFERENCED_PARAMETER (hwnd);
-
 	log_string = _r_format_string (
-		L"%" TEXT (PRIu8) L"-%" TEXT (PR_ULONG_PTR) L"-%" TEXT (PRIu8) L"-%" TEXT (PRIu8) L"-%" TEXT (PRIu16) L"-%" TEXT (PRIu16) L"-%s-%s",
+		L"%" TEXT (PRIu8) L"-%" TEXT (PR_ULONG_PTR) L"-%" TEXT (PRIu8) L"-%" \
+		TEXT (PRIu8) L"-%" TEXT (PRIu16) L"-%" TEXT (PRIu16) L"-%s-%s",
 		ptr_log->af,
 		ptr_log->app_hash,
 		ptr_log->protocol,
@@ -153,11 +172,8 @@ VOID _app_logclear (
 
 	if (_r_fs_isvalidhandle (hfile))
 	{
-		_r_fs_setpos (hfile, 2, FILE_BEGIN);
-
-		SetEndOfFile (hfile);
-
-		FlushFileBuffers (hfile);
+		_r_fs_clearfile (hfile);
+		_app_loginitfile (hfile);
 	}
 
 	log_path = _app_getlogpath ();
@@ -250,11 +266,13 @@ VOID _app_logwrite (
 	if (_app_logislimitreached (current_handle))
 		_app_logclear (current_handle);
 
-	// adds csv header
-	if (_r_fs_getsize (current_handle) == 2)
-		WriteFile (current_handle, SZ_LOG_TITLE, (ULONG)(_r_str_getlength (SZ_LOG_TITLE) * sizeof (WCHAR)), &unused, NULL);
-
-	WriteFile (current_handle, buffer->buffer, (ULONG)buffer->length, &unused, NULL);
+	WriteFile (
+		current_handle,
+		buffer->buffer,
+		(ULONG)buffer->length,
+		&unused,
+		NULL
+	);
 
 	if (date_string)
 		_r_obj_dereference (date_string);
@@ -281,7 +299,7 @@ VOID _app_logwrite_ui (
 	SIZE_T table_size;
 	INT item_id;
 
-	log_hash = _app_getloghash (hwnd, ptr_log);
+	log_hash = _app_getloghash (ptr_log);
 
 	if (!log_hash)
 		return;
@@ -376,23 +394,53 @@ VOID _wfp_logsubscribe (
 
 	if (_FwpmNetEventSubscribe4)
 	{
-		code = _FwpmNetEventSubscribe4 (engine_handle, &subscription, &_wfp_logcallback4, NULL, &new_handle); // win10rs5+
+		code = _FwpmNetEventSubscribe4 (
+			engine_handle,
+			&subscription,
+			&_wfp_logcallback4,
+			NULL,
+			&new_handle
+		); // win10rs5+
 	}
 	else if (_FwpmNetEventSubscribe3)
 	{
-		code = _FwpmNetEventSubscribe3 (engine_handle, &subscription, &_wfp_logcallback3, NULL, &new_handle); // win10rs4+
+		code = _FwpmNetEventSubscribe3 (
+			engine_handle,
+			&subscription,
+			&_wfp_logcallback3,
+			NULL,
+			&new_handle
+		); // win10rs4+
 	}
 	else if (_FwpmNetEventSubscribe2)
 	{
-		code = _FwpmNetEventSubscribe2 (engine_handle, &subscription, &_wfp_logcallback2, NULL, &new_handle); // win10rs1+
+		code = _FwpmNetEventSubscribe2 (
+			engine_handle,
+			&subscription,
+			&_wfp_logcallback2,
+			NULL,
+			&new_handle
+		); // win10rs1+
 	}
 	else if (_FwpmNetEventSubscribe1)
 	{
-		code = _FwpmNetEventSubscribe1 (engine_handle, &subscription, &_wfp_logcallback1, NULL, &new_handle); // win8+
+		code = _FwpmNetEventSubscribe1 (
+			engine_handle,
+			&subscription,
+			&_wfp_logcallback1,
+			NULL,
+			&new_handle
+		); // win8+
 	}
 	else if (_FwpmNetEventSubscribe0)
 	{
-		code = _FwpmNetEventSubscribe0 (engine_handle, &subscription, &_wfp_logcallback0, NULL, &new_handle); // win7+
+		code = _FwpmNetEventSubscribe0 (
+			engine_handle,
+			&subscription,
+			&_wfp_logcallback0,
+			NULL,
+			&new_handle
+		); // win7+
 	}
 	else
 	{
@@ -483,19 +531,44 @@ VOID _wfp_logsetoption (
 	val.type = FWP_UINT32;
 	val.uint32 = mask;
 
-	code = FwpmEngineSetOption (engine_handle, FWPM_ENGINE_NET_EVENT_MATCH_ANY_KEYWORDS, &val);
+	code = FwpmEngineSetOption (
+		engine_handle,
+		FWPM_ENGINE_NET_EVENT_MATCH_ANY_KEYWORDS,
+		&val
+	);
 
 	if (code != ERROR_SUCCESS)
-		_r_log (LOG_LEVEL_WARNING, NULL, L"FwpmEngineSetOption", code, L"FWPM_ENGINE_NET_EVENT_MATCH_ANY_KEYWORDS");
+	{
+		_r_log (
+			LOG_LEVEL_WARNING,
+			NULL,
+			L"FwpmEngineSetOption",
+			code,
+			L"FWPM_ENGINE_NET_EVENT_MATCH_ANY_KEYWORDS"
+		);
+	}
 
-	// enables the connection monitoring feature and starts logging creation and deletion events (and notifying any subscribers)
+	// enables the connection monitoring feature and starts logging creation and
+	// deletion events (and notifying any subscribers)
 	val.type = FWP_UINT32;
 	val.uint32 = !_r_config_getboolean (L"IsExcludeIPSecConnections", FALSE);
 
-	code = FwpmEngineSetOption (engine_handle, FWPM_ENGINE_MONITOR_IPSEC_CONNECTIONS, &val);
+	code = FwpmEngineSetOption (
+		engine_handle,
+		FWPM_ENGINE_MONITOR_IPSEC_CONNECTIONS,
+		&val
+	);
 
 	if (code != ERROR_SUCCESS)
-		_r_log (LOG_LEVEL_WARNING, NULL, L"FwpmEngineSetOption", code, L"FWPM_ENGINE_MONITOR_IPSEC_CONNECTIONS");
+	{
+		_r_log (
+			LOG_LEVEL_WARNING,
+			NULL,
+			L"FwpmEngineSetOption",
+			code,
+			L"FWPM_ENGINE_MONITOR_IPSEC_CONNECTIONS"
+		);
+	}
 }
 
 VOID CALLBACK _wfp_logcallback (
@@ -504,6 +577,7 @@ VOID CALLBACK _wfp_logcallback (
 {
 	HANDLE engine_handle;
 	PITEM_LOG ptr_log;
+	GUID layer_guid;
 	PR_STRING path;
 	PR_STRING resolved_path;
 	PR_STRING filter_name;
@@ -515,16 +589,22 @@ VOID CALLBACK _wfp_logcallback (
 	BOOLEAN is_myprovider;
 	NTSTATUS status;
 
-	engine_handle = _wfp_getenginehandle ();
-
-	if (!engine_handle || !log->filter_id || !log->layer_id)
+	if (!log->filter_id || !log->layer_id)
 		return;
 
 	if (log->is_allow && _r_config_getboolean (L"IsExcludeClassifyAllow", TRUE))
 		return;
 
+	engine_handle = _wfp_getenginehandle ();
+
+	if (!engine_handle)
+		return;
+
 	// do not parse when tcp connection has been established, or when non-tcp traffic has been authorized
-	if (FwpmLayerGetById (engine_handle, log->layer_id, &layer_ptr) != ERROR_SUCCESS || !layer_ptr)
+	if (FwpmLayerGetById (engine_handle, log->layer_id, &layer_ptr) != ERROR_SUCCESS)
+		return;
+
+	if (!layer_ptr)
 		return;
 
 	if (IsEqualGUID (&layer_ptr->layerKey, &FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4) ||
@@ -540,16 +620,18 @@ VOID CALLBACK _wfp_logcallback (
 		log->direction = FWP_DIRECTION_INBOUND; // HACK!!! (issue #581)
 	}
 
-	layer_name = _wfp_getlayername (&layer_ptr->layerKey);
+	RtlCopyMemory (&layer_guid, &layer_ptr->layerKey, sizeof (GUID));
 
 	FwpmFreeMemory ((PVOID_PTR)&layer_ptr);
 
 	// get filter information
 	if (FwpmFilterGetById (engine_handle, log->filter_id, &filter_ptr) != ERROR_SUCCESS || !filter_ptr)
-	{
-		_r_obj_dereference (layer_name);
 		return;
-	}
+
+	if (!filter_ptr)
+		return;
+
+	layer_name = _wfp_getlayername (&layer_guid);
 
 	filter_name = NULL;
 	is_myprovider = FALSE;
@@ -649,18 +731,14 @@ VOID CALLBACK _wfp_logcallback (
 			if (log->flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
 			{
 				if (ULongLongToULong (log->remote_addr4, &ptr_log->remote_addr.S_un.S_addr) == S_OK)
-				{
 					ptr_log->remote_addr.S_un.S_addr = _r_byteswap_ulong (ptr_log->remote_addr.S_un.S_addr);
-				}
 			}
 
 			// local address
 			if (log->flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
 			{
 				if (ULongLongToULong (log->local_addr4, &ptr_log->local_addr.S_un.S_addr) == S_OK)
-				{
 					ptr_log->local_addr.S_un.S_addr = _r_byteswap_ulong (ptr_log->local_addr.S_un.S_addr);
-				}
 			}
 		}
 		else if (log->version == FWP_IP_VERSION_V6)
@@ -669,11 +747,23 @@ VOID CALLBACK _wfp_logcallback (
 
 			// remote address
 			if (log->flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET && log->remote_addr6)
-				RtlCopyMemory (ptr_log->remote_addr6.u.Byte, log->remote_addr6->byteArray16, FWP_V6_ADDR_SIZE);
+			{
+				RtlCopyMemory (
+					ptr_log->remote_addr6.u.Byte,
+					log->remote_addr6->byteArray16,
+					FWP_V6_ADDR_SIZE
+				);
+			}
 
 			// local address
 			if (log->flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET && log->local_addr6)
-				RtlCopyMemory (ptr_log->local_addr6.u.Byte, log->local_addr6->byteArray16, FWP_V6_ADDR_SIZE);
+			{
+				RtlCopyMemory (
+					ptr_log->local_addr6.u.Byte,
+					log->local_addr6->byteArray16,
+					FWP_V6_ADDR_SIZE
+				);
+			}
 		}
 	}
 
@@ -724,20 +814,20 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 {
 	if (version == WINDOWS_7)
 	{
-		FWPM_NET_EVENT1 *event = event_data;
+		FWPM_NET_EVENT1 *evt = event_data;
 
-		if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && event->classifyDrop)
+		if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && evt->classifyDrop)
 		{
-			log->layer_id = event->classifyDrop->layerId;
-			log->filter_id = event->classifyDrop->filterId;
-			log->direction = event->classifyDrop->msFwpDirection;
-			log->is_loopback = !!event->classifyDrop->isLoopback;
+			log->layer_id = evt->classifyDrop->layerId;
+			log->filter_id = evt->classifyDrop->filterId;
+			log->direction = evt->classifyDrop->msFwpDirection;
+			log->is_loopback = !!evt->classifyDrop->isLoopback;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && event->ipsecDrop)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && evt->ipsecDrop)
 		{
-			log->layer_id = event->ipsecDrop->layerId;
-			log->filter_id = event->ipsecDrop->filterId;
-			log->direction = event->ipsecDrop->direction;
+			log->layer_id = evt->ipsecDrop->layerId;
+			log->filter_id = evt->ipsecDrop->filterId;
+			log->direction = evt->ipsecDrop->direction;
 		}
 		else
 		{
@@ -767,43 +857,43 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 			}
 		}
 
-		log->flags = event->header.flags;
-		log->timestamp = &event->header.timeStamp;
+		log->flags = evt->header.flags;
+		log->timestamp = &evt->header.timeStamp;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
-			log->app_id = event->header.appId.data;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
+			log->app_id = evt->header.appId.data;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
-			log->user_id = event->header.userId;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
+			log->user_id = evt->header.userId;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
-			log->protocol = event->header.ipProtocol;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
+			log->protocol = evt->header.ipProtocol;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
-			log->local_port = event->header.localPort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
+			log->local_port = evt->header.localPort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
-			log->remote_port = event->header.remotePort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
+			log->remote_port = evt->header.remotePort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
 		{
-			log->version = event->header.ipVersion;
+			log->version = evt->header.ipVersion;
 
-			if (event->header.ipVersion == FWP_IP_VERSION_V4)
+			if (evt->header.ipVersion == FWP_IP_VERSION_V4)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr4 = event->header.localAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr4 = evt->header.localAddrV4;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr4 = event->header.remoteAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr4 = evt->header.remoteAddrV4;
 			}
-			else if (event->header.ipVersion == FWP_IP_VERSION_V6)
+			else if (evt->header.ipVersion == FWP_IP_VERSION_V6)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr6 = &event->header.localAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr6 = &evt->header.localAddrV6;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr6 = &event->header.remoteAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr6 = &evt->header.remoteAddrV6;
 			}
 		}
 		else
@@ -813,36 +903,36 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 	}
 	else if (version == WINDOWS_8)
 	{
-		FWPM_NET_EVENT2 *event = event_data;
+		FWPM_NET_EVENT2 *evt = event_data;
 
-		if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && event->classifyDrop)
+		if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && evt->classifyDrop)
 		{
-			log->layer_id = event->classifyDrop->layerId;
-			log->filter_id = event->classifyDrop->filterId;
-			log->direction = event->classifyDrop->msFwpDirection;
-			log->is_loopback = !!event->classifyDrop->isLoopback;
+			log->layer_id = evt->classifyDrop->layerId;
+			log->filter_id = evt->classifyDrop->filterId;
+			log->direction = evt->classifyDrop->msFwpDirection;
+			log->is_loopback = !!evt->classifyDrop->isLoopback;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && event->ipsecDrop)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && evt->ipsecDrop)
 		{
-			log->layer_id = event->ipsecDrop->layerId;
-			log->filter_id = event->ipsecDrop->filterId;
-			log->direction = event->ipsecDrop->direction;
+			log->layer_id = evt->ipsecDrop->layerId;
+			log->filter_id = evt->ipsecDrop->filterId;
+			log->direction = evt->ipsecDrop->direction;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && event->classifyAllow)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && evt->classifyAllow)
 		{
-			log->layer_id = event->classifyAllow->layerId;
-			log->filter_id = event->classifyAllow->filterId;
-			log->direction = event->classifyAllow->msFwpDirection;
-			log->is_loopback = !!event->classifyAllow->isLoopback;
+			log->layer_id = evt->classifyAllow->layerId;
+			log->filter_id = evt->classifyAllow->filterId;
+			log->direction = evt->classifyAllow->msFwpDirection;
+			log->is_loopback = !!evt->classifyAllow->isLoopback;
 
 			log->is_allow = TRUE;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && event->classifyDropMac)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && evt->classifyDropMac)
 		{
-			log->layer_id = event->classifyDropMac->layerId;
-			log->filter_id = event->classifyDropMac->filterId;
-			log->direction = event->classifyDropMac->msFwpDirection;
-			log->is_loopback = !!event->classifyDropMac->isLoopback;
+			log->layer_id = evt->classifyDropMac->layerId;
+			log->filter_id = evt->classifyDropMac->filterId;
+			log->direction = evt->classifyDropMac->msFwpDirection;
+			log->is_loopback = !!evt->classifyDropMac->isLoopback;
 		}
 		else
 		{
@@ -872,46 +962,46 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 			}
 		}
 
-		log->flags = event->header.flags;
-		log->timestamp = &event->header.timeStamp;
+		log->flags = evt->header.flags;
+		log->timestamp = &evt->header.timeStamp;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
-			log->app_id = event->header.appId.data;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
+			log->app_id = evt->header.appId.data;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
-			log->package_id = event->header.packageSid;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
+			log->package_id = evt->header.packageSid;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
-			log->user_id = event->header.userId;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
+			log->user_id = evt->header.userId;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
-			log->protocol = event->header.ipProtocol;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
+			log->protocol = evt->header.ipProtocol;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
-			log->local_port = event->header.localPort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
+			log->local_port = evt->header.localPort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
-			log->remote_port = event->header.remotePort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
+			log->remote_port = evt->header.remotePort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
 		{
-			log->version = event->header.ipVersion;
+			log->version = evt->header.ipVersion;
 
-			if (event->header.ipVersion == FWP_IP_VERSION_V4)
+			if (evt->header.ipVersion == FWP_IP_VERSION_V4)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr4 = event->header.localAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr4 = evt->header.localAddrV4;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr4 = event->header.remoteAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr4 = evt->header.remoteAddrV4;
 			}
-			else if (event->header.ipVersion == FWP_IP_VERSION_V6)
+			else if (evt->header.ipVersion == FWP_IP_VERSION_V6)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr6 = &event->header.localAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr6 = &evt->header.localAddrV6;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr6 = &event->header.remoteAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr6 = &evt->header.remoteAddrV6;
 			}
 		}
 		else
@@ -921,36 +1011,36 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 	}
 	else if (version == WINDOWS_10_1607)
 	{
-		FWPM_NET_EVENT3 *event = event_data;
+		FWPM_NET_EVENT3 *evt = event_data;
 
-		if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && event->classifyDrop)
+		if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && evt->classifyDrop)
 		{
-			log->layer_id = event->classifyDrop->layerId;
-			log->filter_id = event->classifyDrop->filterId;
-			log->direction = event->classifyDrop->msFwpDirection;
-			log->is_loopback = !!event->classifyDrop->isLoopback;
+			log->layer_id = evt->classifyDrop->layerId;
+			log->filter_id = evt->classifyDrop->filterId;
+			log->direction = evt->classifyDrop->msFwpDirection;
+			log->is_loopback = !!evt->classifyDrop->isLoopback;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && event->ipsecDrop)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && evt->ipsecDrop)
 		{
-			log->layer_id = event->ipsecDrop->layerId;
-			log->filter_id = event->ipsecDrop->filterId;
-			log->direction = event->ipsecDrop->direction;
+			log->layer_id = evt->ipsecDrop->layerId;
+			log->filter_id = evt->ipsecDrop->filterId;
+			log->direction = evt->ipsecDrop->direction;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && event->classifyAllow)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && evt->classifyAllow)
 		{
-			log->layer_id = event->classifyAllow->layerId;
-			log->filter_id = event->classifyAllow->filterId;
-			log->direction = event->classifyAllow->msFwpDirection;
-			log->is_loopback = !!event->classifyAllow->isLoopback;
+			log->layer_id = evt->classifyAllow->layerId;
+			log->filter_id = evt->classifyAllow->filterId;
+			log->direction = evt->classifyAllow->msFwpDirection;
+			log->is_loopback = !!evt->classifyAllow->isLoopback;
 
 			log->is_allow = TRUE;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && event->classifyDropMac)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && evt->classifyDropMac)
 		{
-			log->layer_id = event->classifyDropMac->layerId;
-			log->filter_id = event->classifyDropMac->filterId;
-			log->direction = event->classifyDropMac->msFwpDirection;
-			log->is_loopback = !!event->classifyDropMac->isLoopback;
+			log->layer_id = evt->classifyDropMac->layerId;
+			log->filter_id = evt->classifyDropMac->filterId;
+			log->direction = evt->classifyDropMac->msFwpDirection;
+			log->is_loopback = !!evt->classifyDropMac->isLoopback;
 		}
 		else
 		{
@@ -980,46 +1070,46 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 			}
 		}
 
-		log->flags = event->header.flags;
-		log->timestamp = &event->header.timeStamp;
+		log->flags = evt->header.flags;
+		log->timestamp = &evt->header.timeStamp;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
-			log->app_id = event->header.appId.data;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
+			log->app_id = evt->header.appId.data;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
-			log->package_id = event->header.packageSid;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
+			log->package_id = evt->header.packageSid;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
-			log->user_id = event->header.userId;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
+			log->user_id = evt->header.userId;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
-			log->protocol = event->header.ipProtocol;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
+			log->protocol = evt->header.ipProtocol;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
-			log->local_port = event->header.localPort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
+			log->local_port = evt->header.localPort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
-			log->remote_port = event->header.remotePort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
+			log->remote_port = evt->header.remotePort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
 		{
-			log->version = event->header.ipVersion;
+			log->version = evt->header.ipVersion;
 
-			if (event->header.ipVersion == FWP_IP_VERSION_V4)
+			if (evt->header.ipVersion == FWP_IP_VERSION_V4)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr4 = event->header.localAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr4 = evt->header.localAddrV4;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr4 = event->header.remoteAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr4 = evt->header.remoteAddrV4;
 			}
-			else if (event->header.ipVersion == FWP_IP_VERSION_V6)
+			else if (evt->header.ipVersion == FWP_IP_VERSION_V6)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr6 = &event->header.localAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr6 = &evt->header.localAddrV6;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr6 = &event->header.remoteAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr6 = &evt->header.remoteAddrV6;
 			}
 		}
 		else
@@ -1029,36 +1119,36 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 	}
 	else if (version == WINDOWS_10_1803)
 	{
-		FWPM_NET_EVENT4 *event = event_data;
+		FWPM_NET_EVENT4 *evt = event_data;
 
-		if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && event->classifyDrop)
+		if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && evt->classifyDrop)
 		{
-			log->layer_id = event->classifyDrop->layerId;
-			log->filter_id = event->classifyDrop->filterId;
-			log->direction = event->classifyDrop->msFwpDirection;
-			log->is_loopback = !!event->classifyDrop->isLoopback;
+			log->layer_id = evt->classifyDrop->layerId;
+			log->filter_id = evt->classifyDrop->filterId;
+			log->direction = evt->classifyDrop->msFwpDirection;
+			log->is_loopback = !!evt->classifyDrop->isLoopback;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && event->ipsecDrop)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && evt->ipsecDrop)
 		{
-			log->layer_id = event->ipsecDrop->layerId;
-			log->filter_id = event->ipsecDrop->filterId;
-			log->direction = event->ipsecDrop->direction;
+			log->layer_id = evt->ipsecDrop->layerId;
+			log->filter_id = evt->ipsecDrop->filterId;
+			log->direction = evt->ipsecDrop->direction;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && event->classifyAllow)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && evt->classifyAllow)
 		{
-			log->layer_id = event->classifyAllow->layerId;
-			log->filter_id = event->classifyAllow->filterId;
-			log->direction = event->classifyAllow->msFwpDirection;
-			log->is_loopback = !!event->classifyAllow->isLoopback;
+			log->layer_id = evt->classifyAllow->layerId;
+			log->filter_id = evt->classifyAllow->filterId;
+			log->direction = evt->classifyAllow->msFwpDirection;
+			log->is_loopback = !!evt->classifyAllow->isLoopback;
 
 			log->is_allow = TRUE;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && event->classifyDropMac)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && evt->classifyDropMac)
 		{
-			log->layer_id = event->classifyDropMac->layerId;
-			log->filter_id = event->classifyDropMac->filterId;
-			log->direction = event->classifyDropMac->msFwpDirection;
-			log->is_loopback = !!event->classifyDropMac->isLoopback;
+			log->layer_id = evt->classifyDropMac->layerId;
+			log->filter_id = evt->classifyDropMac->filterId;
+			log->direction = evt->classifyDropMac->msFwpDirection;
+			log->is_loopback = !!evt->classifyDropMac->isLoopback;
 		}
 		else
 		{
@@ -1088,46 +1178,46 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 			}
 		}
 
-		log->flags = event->header.flags;
-		log->timestamp = &event->header.timeStamp;
+		log->flags = evt->header.flags;
+		log->timestamp = &evt->header.timeStamp;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
-			log->app_id = event->header.appId.data;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
+			log->app_id = evt->header.appId.data;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
-			log->package_id = event->header.packageSid;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
+			log->package_id = evt->header.packageSid;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
-			log->user_id = event->header.userId;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
+			log->user_id = evt->header.userId;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
-			log->protocol = event->header.ipProtocol;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
+			log->protocol = evt->header.ipProtocol;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
-			log->local_port = event->header.localPort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
+			log->local_port = evt->header.localPort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
-			log->remote_port = event->header.remotePort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
+			log->remote_port = evt->header.remotePort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
 		{
-			log->version = event->header.ipVersion;
+			log->version = evt->header.ipVersion;
 
-			if (event->header.ipVersion == FWP_IP_VERSION_V4)
+			if (evt->header.ipVersion == FWP_IP_VERSION_V4)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr4 = event->header.localAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr4 = evt->header.localAddrV4;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr4 = event->header.remoteAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr4 = evt->header.remoteAddrV4;
 			}
-			else if (event->header.ipVersion == FWP_IP_VERSION_V6)
+			else if (evt->header.ipVersion == FWP_IP_VERSION_V6)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr6 = &event->header.localAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr6 = &evt->header.localAddrV6;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr6 = &event->header.remoteAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr6 = &evt->header.remoteAddrV6;
 			}
 		}
 		else
@@ -1137,36 +1227,36 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 	}
 	else if (version == WINDOWS_10_1809)
 	{
-		FWPM_NET_EVENT5 *event = event_data;
+		FWPM_NET_EVENT5 *evt = event_data;
 
-		if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && event->classifyDrop)
+		if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP && evt->classifyDrop)
 		{
-			log->layer_id = event->classifyDrop->layerId;
-			log->filter_id = event->classifyDrop->filterId;
-			log->direction = event->classifyDrop->msFwpDirection;
-			log->is_loopback = !!event->classifyDrop->isLoopback;
+			log->layer_id = evt->classifyDrop->layerId;
+			log->filter_id = evt->classifyDrop->filterId;
+			log->direction = evt->classifyDrop->msFwpDirection;
+			log->is_loopback = !!evt->classifyDrop->isLoopback;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && event->ipsecDrop)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_IPSEC_KERNEL_DROP && evt->ipsecDrop)
 		{
-			log->layer_id = event->ipsecDrop->layerId;
-			log->filter_id = event->ipsecDrop->filterId;
-			log->direction = event->ipsecDrop->direction;
+			log->layer_id = evt->ipsecDrop->layerId;
+			log->filter_id = evt->ipsecDrop->filterId;
+			log->direction = evt->ipsecDrop->direction;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && event->classifyAllow)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_ALLOW && evt->classifyAllow)
 		{
-			log->layer_id = event->classifyAllow->layerId;
-			log->filter_id = event->classifyAllow->filterId;
-			log->direction = event->classifyAllow->msFwpDirection;
-			log->is_loopback = !!event->classifyAllow->isLoopback;
+			log->layer_id = evt->classifyAllow->layerId;
+			log->filter_id = evt->classifyAllow->filterId;
+			log->direction = evt->classifyAllow->msFwpDirection;
+			log->is_loopback = !!evt->classifyAllow->isLoopback;
 
 			log->is_allow = TRUE;
 		}
-		else if (event->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && event->classifyDropMac)
+		else if (evt->type == FWPM_NET_EVENT_TYPE_CLASSIFY_DROP_MAC && evt->classifyDropMac)
 		{
-			log->layer_id = event->classifyDropMac->layerId;
-			log->filter_id = event->classifyDropMac->filterId;
-			log->direction = event->classifyDropMac->msFwpDirection;
-			log->is_loopback = !!event->classifyDropMac->isLoopback;
+			log->layer_id = evt->classifyDropMac->layerId;
+			log->filter_id = evt->classifyDropMac->filterId;
+			log->direction = evt->classifyDropMac->msFwpDirection;
+			log->is_loopback = !!evt->classifyDropMac->isLoopback;
 		}
 		else
 		{
@@ -1196,46 +1286,46 @@ FORCEINLINE BOOLEAN log_struct_to_f (
 			}
 		}
 
-		log->flags = event->header.flags;
-		log->timestamp = &event->header.timeStamp;
+		log->flags = evt->header.flags;
+		log->timestamp = &evt->header.timeStamp;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
-			log->app_id = event->header.appId.data;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_APP_ID_SET)
+			log->app_id = evt->header.appId.data;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
-			log->package_id = event->header.packageSid;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_PACKAGE_ID_SET)
+			log->package_id = evt->header.packageSid;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
-			log->user_id = event->header.userId;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_USER_ID_SET)
+			log->user_id = evt->header.userId;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
-			log->protocol = event->header.ipProtocol;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_PROTOCOL_SET)
+			log->protocol = evt->header.ipProtocol;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
-			log->local_port = event->header.localPort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_PORT_SET)
+			log->local_port = evt->header.localPort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
-			log->remote_port = event->header.remotePort;
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_PORT_SET)
+			log->remote_port = evt->header.remotePort;
 
-		if (event->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
+		if (evt->header.flags & FWPM_NET_EVENT_FLAG_IP_VERSION_SET)
 		{
-			log->version = event->header.ipVersion;
+			log->version = evt->header.ipVersion;
 
-			if (event->header.ipVersion == FWP_IP_VERSION_V4)
+			if (evt->header.ipVersion == FWP_IP_VERSION_V4)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr4 = event->header.localAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr4 = evt->header.localAddrV4;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr4 = event->header.remoteAddrV4;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr4 = evt->header.remoteAddrV4;
 			}
-			else if (event->header.ipVersion == FWP_IP_VERSION_V6)
+			else if (evt->header.ipVersion == FWP_IP_VERSION_V6)
 			{
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
-					log->local_addr6 = &event->header.localAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_LOCAL_ADDR_SET)
+					log->local_addr6 = &evt->header.localAddrV6;
 
-				if (event->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
-					log->remote_addr6 = &event->header.remoteAddrV6;
+				if (evt->header.flags & FWPM_NET_EVENT_FLAG_REMOTE_ADDR_SET)
+					log->remote_addr6 = &evt->header.remoteAddrV6;
 			}
 		}
 		else
@@ -1327,7 +1417,7 @@ VOID NTAPI _app_logthread (
 	PITEM_LOG ptr_log;
 	PITEM_APP ptr_app;
 
-	INT is_silent;
+	BOOLEAN is_silent;
 
 	BOOLEAN is_logenabled;
 	BOOLEAN is_loguienabled;
@@ -1377,8 +1467,21 @@ VOID NTAPI _app_logthread (
 	if ((is_logenabled || is_loguienabled || is_notificationenabled) && is_exludestealth && is_exludeallow)
 	{
 		// get network string
-		ptr_log->remote_addr_str = _app_formataddress (ptr_log->af, ptr_log->protocol, &ptr_log->remote_addr, 0, 0);
-		ptr_log->local_addr_str = _app_formataddress (ptr_log->af, ptr_log->protocol, &ptr_log->local_addr, 0, 0);
+		ptr_log->remote_addr_str = _app_formataddress (
+			ptr_log->af,
+			ptr_log->protocol,
+			&ptr_log->remote_addr,
+			0,
+			0
+		);
+
+		ptr_log->local_addr_str = _app_formataddress (
+			ptr_log->af,
+			ptr_log->protocol,
+			&ptr_log->local_addr,
+			0,
+			0
+		);
 
 		// write log to a file
 		if (is_logenabled)
@@ -1392,12 +1495,15 @@ VOID NTAPI _app_logthread (
 				_app_logwrite_ui (hwnd, ptr_log);
 
 			// display notification
-			if (is_notificationenabled && ptr_app && !ptr_log->is_allow)
+			if (is_notificationenabled)
 			{
-				if (is_exludeblocklist)
+				if (ptr_app && !ptr_log->is_allow && is_exludeblocklist)
 				{
-					if (_app_getappinfo (ptr_app, INFO_IS_SILENT, (PVOID_PTR)&is_silent) && !is_silent)
-						_app_notify_addobject (_r_obj_reference (ptr_log), ptr_app);
+					if (_app_getappinfo (ptr_app, INFO_IS_SILENT, &is_silent, sizeof (is_silent)))
+					{
+						if (!is_silent)
+							_app_notify_addobject (hwnd, ptr_log, ptr_app);
+					}
 				}
 			}
 		}
