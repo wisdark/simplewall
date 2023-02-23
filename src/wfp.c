@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2022 Henry++
+// Copyright (c) 2016-2023 Henry++
 
 #include "global.h"
 
@@ -93,6 +93,7 @@ BOOLEAN _wfp_isfiltersinstalled ()
 	return (install_type != INSTALL_DISABLED);
 }
 
+_Ret_maybenull_
 HANDLE _wfp_getenginehandle ()
 {
 	static R_INITONCE init_once = PR_INITONCE_INIT;
