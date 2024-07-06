@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -14,7 +14,7 @@ typedef struct _ITEM_LISTVIEW_CONTEXT
 	} DUMMYSTRUCTNAME;
 } ITEM_LISTVIEW_CONTEXT, *PITEM_LISTVIEW_CONTEXT;
 
-#define PR_SETITEM_REDRAW  0x0001
+#define PR_SETITEM_REDRAW 0x0001
 #define PR_SETITEM_UPDATE 0x0002
 
 #define PR_UPDATE_TYPE 0x0001
@@ -55,19 +55,17 @@ VOID _app_listview_addappitem (
 VOID _app_listview_addruleitem (
 	_In_ HWND hwnd,
 	_In_ PITEM_RULE ptr_rule,
-	_In_ SIZE_T rule_idx,
+	_In_ ULONG_PTR rule_idx,
 	_In_ BOOLEAN is_forapp
 );
 
 VOID _app_listview_addnetworkitem (
 	_In_ HWND hwnd,
-	_In_ PITEM_NETWORK ptr_network,
 	_In_ ULONG_PTR network_hash
 );
 
 VOID _app_listview_addlogitem (
 	_In_ HWND hwnd,
-	_In_ PITEM_LOG ptr_log,
 	_In_ ULONG_PTR log_hash
 );
 
@@ -92,6 +90,12 @@ VOID _app_listview_destroycontext (
 
 ULONG_PTR _app_listview_getcontextcode (
 	_In_ LPARAM lparam
+);
+
+ULONG_PTR _app_listview_getappcontext (
+	_In_ HWND hwnd,
+	_In_ INT listview_id,
+	_In_ INT item_id
 );
 
 ULONG_PTR _app_listview_getitemcontext (
@@ -165,15 +169,10 @@ VOID _app_listview_refreshgroups (
 	_In_ INT listview_id
 );
 
-VOID _app_listview_resize_ex (
+VOID _app_listview_resize (
 	_In_ HWND hwnd,
 	_In_ INT listview_id,
 	_In_ BOOLEAN is_forced
-);
-
-VOID _app_listview_resize (
-	_In_ HWND hwnd,
-	_In_ INT listview_id
 );
 
 VOID _app_listview_setfont (
@@ -192,14 +191,9 @@ INT CALLBACK _app_listview_compare_callback (
 	_In_ LPARAM lparam
 );
 
-VOID _app_listview_sort_ex (
+VOID _app_listview_sort (
 	_In_ HWND hwnd,
 	_In_ INT listview_id,
 	_In_ LONG column_id,
 	_In_ BOOLEAN is_notifycode
-);
-
-VOID _app_listview_sort (
-	_In_ HWND hwnd,
-	_In_ INT listview_id
 );

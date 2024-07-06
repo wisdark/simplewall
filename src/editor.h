@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -18,7 +18,7 @@ typedef struct _EDITOR_CONTEXT
 
 	struct
 	{
-		SIZE_T current_length;
+		ULONG_PTR current_length;
 		INT listview_id;
 		INT item_id;
 	};

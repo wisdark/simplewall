@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -86,6 +86,14 @@ DECLSPEC_SELECTANY const LONG64 timer_array[] =
 
 #ifndef FWP_DIRECTION_OUT
 #define FWP_DIRECTION_OUT 0x00003901L
+#endif
+
+#ifndef FWP_DIRECTION_FORWARD
+#define FWP_DIRECTION_FORWARD 0x00003902L
+#endif
+
+#ifndef FWP_DIRECTION_FORWARD2
+#define FWP_DIRECTION_FORWARD2 0x00003903L
 #endif
 
 #define WM_NOTIFICATION (WM_APP + 21)

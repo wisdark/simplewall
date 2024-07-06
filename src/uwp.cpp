@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2022,2023 Henry++
+// Copyright (c) 2022-2024 Henry++
 
 #include "routine.h"
 
@@ -24,14 +24,12 @@ BOOLEAN _app_uwp_loadpackageinfo (
 	winrt::hstring display_name;
 	winrt::hstring path;
 
-	package = winrt::Windows::Management::Deployment::PackageManager{}.FindPackage (
-		package_name->buffer
-	);
+	package = winrt::Windows::Management::Deployment::PackageManager{}.FindPackage (package_name->buffer);
 
 	if (!package)
 		return FALSE;
 
-	if (_r_sys_isosversiongreaterorequal (WINDOWS_10_1507))
+	if (_r_sys_isosversiongreaterorequal (WINDOWS_10))
 	{
 		status = package.Status ();
 
@@ -47,26 +45,18 @@ BOOLEAN _app_uwp_loadpackageinfo (
 
 	if (display_name.empty ())
 	{
-		*name_ptr = _r_obj_createstring2 (package_name);
+		*name_ptr = _r_obj_createstring2 (&package_name->sr);
 	}
 	else
 	{
 		if (display_name == L"1527c705-839a-4832-9118-54d4Bd6a0c89")
-			display_name = L"File Picker";// HACK!!!
+			display_name = L"File Picker"; // HACK!!!
 
-		*name_ptr = _r_obj_createstring_ex (
-			display_name.c_str (),
-			display_name.size () * sizeof (WCHAR)
-		);
+		*name_ptr = _r_obj_createstring_ex (display_name.c_str (), display_name.size () * sizeof (WCHAR));
 	}
 
 	if (!path.empty ())
-	{
-		*path_ptr = _r_obj_createstring_ex (
-			path.c_str (),
-			path.size () * sizeof (WCHAR)
-		);
-	}
+		*path_ptr = _r_obj_createstring_ex (path.c_str (), path.size () * sizeof (WCHAR));
 
 	return TRUE;
 }
@@ -78,7 +68,7 @@ BOOLEAN _app_uwp_getpackageinfo (
 	_Out_ PR_STRING_PTR path_ptr
 )
 {
-	BOOLEAN status;
+	BOOLEAN status = FALSE;
 
 	*name_ptr = NULL;
 	*path_ptr = NULL;
@@ -89,7 +79,7 @@ BOOLEAN _app_uwp_getpackageinfo (
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		*name_ptr = _r_obj_createstring2 (package_name);
+		*name_ptr = _r_obj_createstring2 (&package_name->sr);
 
 		return TRUE;
 	}

@@ -1,3 +1,105 @@
+v3.8.2 (9 May 2024)
+- revert back windows 7 & windows 8 support
+- improved dark theme support
+- improved log subscription
+- fixed show log button does not work as expected (issue #1757)
+- fixed search visibility
+
+v3.8.1 (27 April 2024)
+- fixed lacks search context (issue #1760)
+- fixed incorrect log ui listview item counting
+- updated confirm message for timers cleanup
+- updated confirm message for unused cleanup
+- updated cppwinrt package
+- updated project sdk
+
+v3.8 (1 April 2024)
+- added mitigations (win10+) (issue #611)
+- added dark theme support (issue #248)
+- fixed displaying same context menu on apps and packets log
+- updated search engine
+- updated project sdk
+
+v3.7.8 (28 January 2024)
+- added saving flag state for install/uninstall filters
+- fixed crash on tooltip (issue #1686)
+- fixed apps disabled removal menu
+- updated dropped packets (ui) listview context menu
+- updated project sdk
+
+v3.7.7 (3 January 2024)
+- added error message when loading library on subscribe
+- added comment item for apps/rules (issue #1664)
+- added recheck app hash in properies dialog
+- added highlighting of undelatable apps
+- fixed displaying incorrect error messages
+- fixed high disk usage (issue #1665)
+- updated ports list
+
+v3.7.6 (30 November 2023)
+- fixed configuration of windows update (issue #1648)
+- fixed auto update fails to install (issue #1565)
+- updated project sdk
+
+v3.7.5 (1 November 2023)
+- fixed saving services and uwp apps (issue #1616)
+- fixed file locked by simplewall (issue #1621)
+- fixed removing unused apps
+- fixed process creation
+- updated project sdk
+
+v3.7.4 (27 October 2023)
+- added set option to disable apps removal from profile (issue #1155)
+- fixed cannot save itself as unchecked (issue #1609)
+- fixed could not save profile (issue #1594)
+- fixed crash (issue #1582)
+- updated project sdk
+
+v3.7.3 (11 October 2023)
+- added error message for saving profile
+- removed redistributable package requirement (issue #1587)
+- fixed profile was not found message (issue #1557)
+- fixed crash on reading version information
+- revert back certificates checking option
+- updated project sdk
+
+v3.7.2 (21 September 2023)
+- dropped windows 7 and windows 8 support
+- fixed launch of several copies of the application (issue #1547)
+- fixed create filters for inaccessible apps (issue #1528)
+- fixed displaying update dialog at startup (issue #1511)
+- fixed retrieving version information for some files
+- fixed slow apps search (issue #1477)
+- fixed periodicaly crashing (issue #1486)
+- fixed retrieving some apps icons
+- fixed saving input on settings
+- fixed saving unused apps
+- fixed process creation
+- improved signature checking
+- updated project sdk
+
+v3.7.1 (31 July 2023)
+- fixed import not correcly worked (issue #1466)
+- fixed crash when checking files (issue #1455)
+- updated project sdk
+
+v3.7 (27 July 2023)
+- added profile encryption [oldest versions cannot open new profile] (issue #599)
+- added terminate process into notification window (issue #1398)
+- added checksum calculation for the apps (issue #394)
+- added error message for log subscription
+- improved search performance (issue #1383)
+- fixed timer and apps timestamp displays incorrect information (32-bit only)
+- fixed sometimes application displays incrorrect icons
+- fixed possible crash when clearing log
+- fixed silent uninstaller do not worked
+- fixed arm64 build crash (issue #1228)
+- fixed internal bugs
+- fixed memory leaks
+- updated nuget package
+- updated project sdk
+- updated locale
+
 v3.6.7 (21 September 2022)
 - added windows update service solution (issue #677, thx @taviso) [win10+]
 - added feature to allow only the requested ip in notification (issue #1265)

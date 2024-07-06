@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #include "global.h"
 
@@ -12,51 +12,48 @@ VOID _app_getapptooltipstring (
 {
 	PITEM_APP_INFO ptr_app_info;
 	PITEM_APP ptr_app;
-	PR_STRING tmp_string1;
-	PR_STRING tmp_string2;
-	PR_STRING tmp_string3;
+	PR_STRING string;
+	PR_STRING value;
+	PR_STRING path = NULL;
 	R_STRINGBUILDER sb;
 
 	ptr_app = _app_getappitem (app_hash);
-	ptr_app_info = _app_getappinfobyhash2 (app_hash);
 
 	// file path
-	tmp_string3 = NULL;
-
 	if (ptr_app)
 	{
 		if (ptr_app->real_path)
 		{
-			tmp_string3 = ptr_app->real_path;
+			path = ptr_app->real_path;
 		}
 		else if (ptr_app->display_name)
 		{
-			tmp_string3 = ptr_app->display_name;
+			path = ptr_app->display_name;
 		}
 		else
 		{
-			tmp_string3 = ptr_app->original_path;
+			path = ptr_app->original_path;
 		}
 	}
 	else if (ptr_network)
 	{
-		if (ptr_network->path)
-			tmp_string3 = ptr_network->path;
+		path = ptr_network->path;
 	}
 	else if (ptr_log)
 	{
 		if (ptr_log->path)
-			tmp_string3 = ptr_log->path;
+			path = ptr_log->path;
 	}
 
-	if (tmp_string3)
+	if (path)
 	{
-		_r_obj_appendstringbuilder2 (buffer, tmp_string3);
-		_r_obj_appendstringbuilder (buffer, L"\r\n");
+		_r_obj_appendstringbuilder2 (buffer, &path->sr);
+
+		_r_obj_appendstringbuilder (buffer, SZ_CRLF);
 	}
 
 	// file information
-	_r_obj_initializestringbuilder (&sb);
+	_r_obj_initializestringbuilder (&sb, 512);
 
 	// file display name
 	if (ptr_app)
@@ -64,35 +61,58 @@ VOID _app_getapptooltipstring (
 		if (ptr_app->display_name)
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
-			_r_obj_appendstringbuilder2 (&sb, ptr_app->display_name);
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder2 (&sb, &ptr_app->display_name->sr);
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 	}
 
 	// file version
+	ptr_app_info = _app_getappinfobyhash2 (app_hash);
+
 	if (ptr_app_info)
 	{
 		if (!_r_obj_isstringempty (ptr_app_info->version_info))
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
-			_r_obj_appendstringbuilder2 (&sb, ptr_app_info->version_info);
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder2 (&sb, &ptr_app_info->version_info->sr);
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 	}
 
 	// compile
 	if (!_r_obj_isstringempty2 (sb.string))
 	{
-		tmp_string1 = _r_obj_concatstrings (
+		string = _r_obj_concatstrings (
 			2,
 			_r_locale_getstring (IDS_FILE),
 			L":\r\n"
 		);
 
-		_r_obj_insertstringbuilder2 (&sb, 0, tmp_string1);
-		_r_obj_appendstringbuilder2 (buffer, sb.string);
+		_r_obj_insertstringbuilder2 (&sb, 0, string);
+		_r_obj_appendstringbuilder2 (buffer, &sb.string->sr);
 
-		_r_obj_dereference (tmp_string1);
+		_r_obj_dereference (string);
+	}
+
+	// comment
+	if (ptr_app)
+	{
+		if (!_r_obj_isstringempty (ptr_app->comment))
+		{
+			string = _r_obj_concatstrings (
+				2,
+				_r_locale_getstring (IDS_COMMENT),
+				L":\r\n"
+			);
+
+			_r_obj_appendstringbuilder2 (buffer, &string->sr);
+
+			_r_obj_appendstringbuilder (buffer, SZ_TAB);
+			_r_obj_appendstringbuilder2 (buffer, &ptr_app->comment->sr);
+			_r_obj_appendstringbuilder (buffer, SZ_CRLF);
+
+			_r_obj_dereference (string);
+		}
 	}
 
 	// file signature
@@ -100,17 +120,17 @@ VOID _app_getapptooltipstring (
 	{
 		if (!_r_obj_isstringempty (ptr_app_info->signature_info))
 		{
-			tmp_string1 = _r_obj_concatstrings (
+			string = _r_obj_concatstrings (
 				4,
 				_r_locale_getstring (IDS_SIGNATURE),
 				L":\r\n" SZ_TAB,
 				ptr_app_info->signature_info->buffer,
-				L"\r\n"
+				SZ_CRLF
 			);
 
-			_r_obj_appendstringbuilder2 (buffer, tmp_string1);
+			_r_obj_appendstringbuilder2 (buffer, &string->sr);
 
-			_r_obj_dereference (tmp_string1);
+			_r_obj_dereference (string);
 		}
 	}
 
@@ -121,62 +141,62 @@ VOID _app_getapptooltipstring (
 	{
 		if (_app_istimerset (ptr_app))
 		{
-			tmp_string2 = _r_format_interval (ptr_app->timer - _r_unixtime_now (), 3);
+			value = _r_format_interval (ptr_app->timer - _r_unixtime_now (), TRUE);
 
-			if (tmp_string2)
+			if (value)
 			{
-				tmp_string1 = _r_obj_concatstrings (
+				string = _r_obj_concatstrings (
 					4,
 					_r_locale_getstring (IDS_TIMELEFT),
 					L":" SZ_TAB_CRLF,
-					tmp_string2->buffer,
-					L"\r\n"
+					value->buffer,
+					SZ_CRLF
 				);
 
-				_r_obj_appendstringbuilder2 (buffer, tmp_string1);
+				_r_obj_appendstringbuilder2 (buffer, &string->sr);
 
-				_r_obj_dereference (tmp_string2);
-				_r_obj_dereference (tmp_string1);
+				_r_obj_dereference (string);
+				_r_obj_dereference (value);
 			}
 		}
 	}
 
 	// app rules
-	tmp_string2 = _app_appexpandrules (app_hash, SZ_TAB_CRLF);
+	value = _app_appexpandrules (app_hash, SZ_TAB_CRLF);
 
-	if (tmp_string2)
+	if (value)
 	{
-		tmp_string1 = _r_obj_concatstrings (
+		string = _r_obj_concatstrings (
 			4,
 			_r_locale_getstring (IDS_RULE),
 			L":" SZ_TAB_CRLF,
-			tmp_string2->buffer,
-			L"\r\n"
+			value->buffer,
+			SZ_CRLF
 		);
 
-		_r_obj_appendstringbuilder2 (buffer, tmp_string1);
+		_r_obj_appendstringbuilder2 (buffer, &string->sr);
 
-		_r_obj_dereference (tmp_string2);
-		_r_obj_dereference (tmp_string1);
+		_r_obj_dereference (string);
+		_r_obj_dereference (value);
 	}
 
 	// app notes
 	if (ptr_app)
 	{
-		_r_obj_initializestringbuilder (&sb);
+		_r_obj_initializestringbuilder (&sb, 512);
 
 		// app type
 		if (ptr_app->type == DATA_APP_NETWORK)
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_NETWORK));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 		else if (ptr_app->type == DATA_APP_PICO)
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_PICO));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 
 		// app settings
@@ -184,38 +204,45 @@ VOID _app_getapptooltipstring (
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_SYSTEM));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 
 		if (_app_network_isapphaveconnection (app_hash))
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_CONNECTION));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 
 		if (ptr_app->is_silent)
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_SILENT));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
+		}
+
+		if (ptr_app->is_undeletable)
+		{
+			_r_obj_appendstringbuilder (&sb, SZ_TAB);
+			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_DISABLEREMOVAL));
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 
 		if (!_app_isappexists (ptr_app))
 		{
 			_r_obj_appendstringbuilder (&sb, SZ_TAB);
 			_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_HIGHLIGHT_INVALID));
-			_r_obj_appendstringbuilder (&sb, L"\r\n");
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 		}
 
-		tmp_string1 = _r_obj_finalstringbuilder (&sb);
+		string = _r_obj_finalstringbuilder (&sb);
 
-		if (!_r_obj_isstringempty2 (tmp_string1))
+		if (!_r_obj_isstringempty2 (string))
 		{
 			_r_obj_insertstringbuilder (&sb, 0, L":\r\n");
 			_r_obj_insertstringbuilder (&sb, 0, _r_locale_getstring (IDS_NOTES));
 
-			_r_obj_appendstringbuilder2 (buffer, tmp_string1);
+			_r_obj_appendstringbuilder2 (buffer, &string->sr);
 		}
 
 		_r_obj_deletestringbuilder (&sb);
@@ -236,28 +263,28 @@ VOID _app_getapptooltipstring (
 
 		if (ptr_log->filter_name)
 		{
-			_r_obj_appendstringbuilder2 (buffer, ptr_log->filter_name);
+			_r_obj_appendstringbuilder2 (buffer, &ptr_log->filter_name->sr);
 		}
 		else
 		{
 			_r_obj_appendstringbuilder (buffer, SZ_EMPTY);
 		}
 
-		_r_obj_appendstringbuilder (buffer, L"\r\n" SZ_TAB);
+		_r_obj_appendstringbuilder (buffer, SZ_CRLF SZ_TAB);
 
 		_r_obj_appendstringbuilder (buffer, _r_locale_getstring (IDS_LAYER));
 		_r_obj_appendstringbuilder (buffer, L": ");
 
 		if (ptr_log->layer_name)
 		{
-			_r_obj_appendstringbuilder2 (buffer, ptr_log->layer_name);
+			_r_obj_appendstringbuilder2 (buffer, &ptr_log->layer_name->sr);
 		}
 		else
 		{
 			_r_obj_appendstringbuilder (buffer, SZ_EMPTY);
 		}
 
-		_r_obj_appendstringbuilder (buffer, L"\r\n");
+		_r_obj_appendstringbuilder (buffer, SZ_CRLF);
 	}
 }
 
@@ -268,7 +295,7 @@ PR_STRING _app_gettooltipbylparam (
 	_In_ ULONG_PTR lparam
 )
 {
-	R_STRINGBUILDER sr;
+	R_STRINGBUILDER sb;
 	PR_STRING string1;
 	PR_STRING string2;
 	PITEM_RULE ptr_rule;
@@ -277,24 +304,35 @@ PR_STRING _app_gettooltipbylparam (
 
 	UNREFERENCED_PARAMETER (hwnd);
 
-	_r_obj_initializestringbuilder (&sr);
+	_r_obj_initializestringbuilder (&sb, 512);
 
-	if ((listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP) || listview_id == IDC_RULE_APPS_ID)
+	switch (listview_id)
 	{
-		_app_getapptooltipstring (&sr, lparam, NULL, NULL);
-	}
-	else if ((listview_id >= IDC_RULES_BLOCKLIST && listview_id <= IDC_RULES_CUSTOM) || listview_id == IDC_APP_RULES_ID)
-	{
-		ptr_rule = _app_getrulebyid (lparam);
-
-		if (ptr_rule)
+		case IDC_APPS_PROFILE:
+		case IDC_APPS_SERVICE:
+		case IDC_APPS_UWP:
+		case IDC_RULE_APPS_ID:
 		{
-			string1 = _app_rulesexpandrules (ptr_rule->rule_remote, L"\r\n" SZ_TAB);
-			string2 = _app_rulesexpandrules (ptr_rule->rule_local, L"\r\n" SZ_TAB);
+			_app_getapptooltipstring (&sb, lparam, NULL, NULL);
+			break;
+		}
 
-			// rule information
+		case IDC_RULES_BLOCKLIST:
+		case IDC_RULES_SYSTEM:
+		case IDC_RULES_CUSTOM:
+		case IDC_APP_RULES_ID:
+		{
+			ptr_rule = _app_getrulebyid (lparam);
+
+			if (!ptr_rule)
+				break;
+
+			// rule address
+			string1 = _app_rulesexpandrules (ptr_rule->rule_remote, SZ_CRLF SZ_TAB);
+			string2 = _app_rulesexpandrules (ptr_rule->rule_local, SZ_CRLF SZ_TAB);
+
 			_r_obj_appendstringbuilderformat (
-				&sr,
+				&sb,
 				L"%s (#%" TEXT (PR_ULONG_PTR) L")\r\n%s (" SZ_DIRECTION_REMOTE L"):\r\n%s%s\r\n%s (" SZ_DIRECTION_LOCAL L"):\r\n%s%s",
 				_r_obj_getstringordefault (ptr_rule->name, SZ_EMPTY),
 				lparam,
@@ -313,7 +351,7 @@ PR_STRING _app_gettooltipbylparam (
 				_r_obj_dereference (string2);
 
 			// rule apps
-			if (ptr_rule->is_forservices || !_r_obj_ishashtableempty (ptr_rule->apps))
+			if (ptr_rule->is_forservices || !_r_obj_isempty (ptr_rule->apps))
 			{
 				string1 = _app_rulesexpandapps (ptr_rule, TRUE, SZ_TAB_CRLF);
 
@@ -321,17 +359,35 @@ PR_STRING _app_gettooltipbylparam (
 				{
 					string2 = _r_obj_concatstrings (
 						4,
-						L"\r\n",
+						SZ_CRLF,
 						_r_locale_getstring (IDS_TAB_APPS),
 						L":\r\n" SZ_TAB,
 						string1->buffer
 					);
 
-					_r_obj_appendstringbuilder2 (&sr, string2);
+					_r_obj_appendstringbuilder2 (&sb, &string2->sr);
+					_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 
 					_r_obj_dereference (string1);
 					_r_obj_dereference (string2);
 				}
+			}
+
+			// comment
+			if (!_r_obj_isstringempty (ptr_rule->comment))
+			{
+				string1 = _r_obj_concatstrings (
+					3,
+					SZ_CRLF,
+					_r_locale_getstring (IDS_COMMENT),
+					L":\r\n" SZ_TAB
+				);
+
+				_r_obj_appendstringbuilder2 (&sb, &string1->sr);
+
+				_r_obj_appendstringbuilder2 (&sb, &ptr_rule->comment->sr);
+
+				_r_obj_dereference (string1);
 			}
 
 			// rule notes
@@ -339,49 +395,57 @@ PR_STRING _app_gettooltipbylparam (
 			{
 				string2 = _r_obj_concatstrings (
 					4,
-					L"\r\n",
+					SZ_CRLF,
 					_r_locale_getstring (IDS_NOTES),
 					L":\r\n" SZ_TAB,
 					SZ_RULE_INTERNAL_TITLE
 				);
 
-				_r_obj_appendstringbuilder2 (&sr, string2);
+				_r_obj_appendstringbuilder2 (&sb, &string2->sr);
 
 				_r_obj_dereference (string2);
 			}
 
 			_r_obj_dereference (ptr_rule);
-		}
-	}
-	else if (listview_id == IDC_NETWORK)
-	{
-		ptr_network = _app_network_getitem (lparam);
 
-		if (ptr_network)
+			break;
+		}
+
+		case IDC_NETWORK:
 		{
-			_app_getapptooltipstring (&sr, ptr_network->app_hash, ptr_network, NULL);
+			ptr_network = _app_network_getitem (lparam);
+
+			if (!ptr_network)
+				break;
+
+			_app_getapptooltipstring (&sb, ptr_network->app_hash, ptr_network, NULL);
 
 			_r_obj_dereference (ptr_network);
-		}
-	}
-	else if (listview_id == IDC_LOG)
-	{
-		ptr_log = _app_getlogitem (lparam);
 
-		if (ptr_log)
+			break;
+		}
+
+		case IDC_LOG:
 		{
-			_app_getapptooltipstring (&sr, ptr_log->app_hash, NULL, ptr_log);
+			ptr_log = _app_getlogitem (lparam);
+
+			if (!ptr_log)
+				break;
+
+			_app_getapptooltipstring (&sb, ptr_log->app_hash, NULL, ptr_log);
 
 			_r_obj_dereference (ptr_log);
+
+			break;
 		}
 	}
 
-	string1 = _r_obj_finalstringbuilder (&sr);
+	string1 = _r_obj_finalstringbuilder (&sb);
 
 	if (!_r_obj_isstringempty2 (string1))
 		return string1;
 
-	_r_obj_deletestringbuilder (&sr);
+	_r_obj_deletestringbuilder (&sb);
 
 	return NULL;
 }
@@ -400,7 +464,7 @@ VOID _app_settab_id (
 
 	hctrl = GetDlgItem (hwnd, page_id);
 
-	if (!hctrl || (_app_listview_getcurrent (hwnd) == page_id && _r_wnd_isvisible (hctrl)))
+	if (!hctrl || (_app_listview_getcurrent (hwnd) == page_id && _r_wnd_isvisible (hctrl, FALSE)))
 		return;
 
 	item_count = _r_tab_getitemcount (hwnd, IDC_TAB);
@@ -415,6 +479,7 @@ VOID _app_settab_id (
 		if (listview_id == page_id)
 		{
 			_r_tab_selectitem (hwnd, IDC_TAB, i);
+
 			return;
 		}
 	}
@@ -423,7 +488,7 @@ VOID _app_settab_id (
 		_app_settab_id (hwnd, IDC_APPS_PROFILE);
 }
 
-LPCWSTR _app_getstateaction (
+LPWSTR _app_getstateaction (
 	_In_ ENUM_INSTALL_TYPE install_type
 )
 {
@@ -469,12 +534,9 @@ HBITMAP _app_getstatebitmap (
 		{
 			return config.hbmp_enable;
 		}
-
-		default:
-		{
-			return NULL;
-		}
 	}
+
+	return NULL;
 }
 
 INT _app_getstateicon (
@@ -488,13 +550,9 @@ INT _app_getstateicon (
 		{
 			return IDI_ACTIVE;
 		}
-
-		//case INSTALL_DISABLED:
-		default:
-		{
-			return IDI_INACTIVE;
-		}
 	}
+
+	return IDI_INACTIVE;
 }
 
 LPCWSTR _app_getstatelocale (
@@ -524,7 +582,9 @@ LPCWSTR _app_getstatelocale (
 		}
 
 		default:
+		{
 			return NULL;
+		}
 	}
 
 	return _r_locale_getstring (locale_id);
@@ -535,18 +595,12 @@ BOOLEAN _app_initinterfacestate (
 	_In_ BOOLEAN is_forced
 )
 {
-	if (is_forced || _r_toolbar_isbuttonenabled (config.hrebar, IDC_TOOLBAR, IDM_TRAY_START))
+	if (is_forced || _r_toolbar_isenabled (config.hrebar, IDC_TOOLBAR, IDM_TRAY_START))
 	{
 		_r_toolbar_enablebutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_START, FALSE);
 		_r_toolbar_enablebutton (config.hrebar, IDC_TOOLBAR, IDM_REFRESH, FALSE);
 
-		_r_status_settextformat (
-			hwnd,
-			IDC_STATUSBAR,
-			0,
-			L"%s...",
-			_r_locale_getstring (IDS_STATUS_FILTERS_PROCESSING)
-		);
+		_r_status_settextformat (hwnd, IDC_STATUSBAR, 0, L"%s...", _r_locale_getstring (IDS_STATUS_FILTERS_PROCESSING));
 
 		return TRUE;
 	}
@@ -578,15 +632,11 @@ VOID _app_setinterfacestate (
 )
 {
 	ENUM_INSTALL_TYPE install_type;
-
 	HICON hico_sm;
 	HICON hico_big;
-
 	LONG icon_small;
 	LONG icon_large;
-
 	INT icon_id;
-
 	BOOLEAN is_filtersinstalled;
 
 	install_type = _wfp_getinstalltype ();
@@ -597,12 +647,12 @@ VOID _app_setinterfacestate (
 
 	icon_id = _app_getstateicon (install_type);
 
-	hico_sm = _r_sys_loadsharedicon (_r_sys_getimagebase (), MAKEINTRESOURCE (icon_id), icon_small);
-	hico_big = _r_sys_loadsharedicon (_r_sys_getimagebase (), MAKEINTRESOURCE (icon_id), icon_large);
+	hico_sm = _r_sys_loadsharedicon (_r_sys_getimagebase (), MAKEINTRESOURCEW (icon_id), icon_small);
+	hico_big = _r_sys_loadsharedicon (_r_sys_getimagebase (), MAKEINTRESOURCEW (icon_id), icon_large);
 
 	_r_wnd_seticon (hwnd, hico_sm, hico_big);
 
-	//SendDlgItemMessage (hwnd, IDC_STATUSBAR, SB_SETICON, 0, (LPARAM)hico_sm);
+	//_r_wnd_sendmessage (hwnd, IDC_STATUSBAR, SB_SETICON, 0, (LPARAM)hico_sm);
 
 	if (!_wfp_isfiltersapplying ())
 		_r_status_settext (hwnd, IDC_STATUSBAR, 0, _app_getstatelocale (install_type));
@@ -627,37 +677,31 @@ VOID _app_settrayicon (
 {
 	HICON current_handle;
 	HICON new_handle;
-
 	LONG dpi_value;
 	LONG icon_size;
-
 	INT icon_id;
+	HRESULT status;
 
 	dpi_value = _r_dc_gettaskbardpi ();
 	icon_id = _app_getstateicon (install_type);
 	icon_size = _r_dc_getsystemmetrics (SM_CXSMICON, dpi_value);
 
-	current_handle = InterlockedCompareExchangePointer (
-		&config.htray_icon,
-		NULL,
-		config.htray_icon
-	);
+	current_handle = _InterlockedCompareExchangePointer (&config.htray_icon, NULL, config.htray_icon);
 
 	if (current_handle)
 		DestroyIcon (current_handle);
 
-	new_handle = _r_sys_loadicon (_r_sys_getimagebase (), MAKEINTRESOURCE (icon_id), icon_size);
+	status = _r_sys_loadicon (_r_sys_getimagebase (), MAKEINTRESOURCEW (icon_id), icon_size, &new_handle);
 
-	_r_tray_setinfo (hwnd, &GUID_TrayIcon, new_handle, _r_app_getname ());
+	if (SUCCEEDED (status))
+	{
+		_r_tray_setinfo (hwnd, &GUID_TrayIcon, new_handle, _r_app_getname ());
 
-	current_handle = InterlockedCompareExchangePointer (
-		&config.htray_icon,
-		new_handle,
-		NULL
-	);
+		current_handle = _InterlockedCompareExchangePointer (&config.htray_icon, new_handle, NULL);
 
-	if (current_handle)
-		DestroyIcon (current_handle);
+		if (current_handle)
+			DestroyIcon (current_handle);
+	}
 }
 
 VOID _app_imagelist_init (
@@ -685,10 +729,9 @@ VOID _app_imagelist_init (
 	};
 
 	HBITMAP hbitmap;
-
+	LONG icon_size_toolbar;
 	LONG icon_small;
 	LONG icon_large;
-	LONG icon_size_toolbar;
 
 	SAFE_DELETE_OBJECT (config.hbmp_enable);
 	SAFE_DELETE_OBJECT (config.hbmp_disable);
@@ -698,99 +741,77 @@ VOID _app_imagelist_init (
 	icon_small = _r_dc_getsystemmetrics (SM_CXSMICON, dpi_value);
 	icon_large = _r_dc_getsystemmetrics (SM_CXICON, dpi_value);
 
-	icon_size_toolbar = _r_calc_clamp (
-		_r_dc_getdpi (_r_config_getlong (L"ToolbarSize", PR_SIZE_ITEMHEIGHT), dpi_value),
-		icon_small,
-		icon_large
-	);
+	icon_size_toolbar = _r_calc_clamp (_r_dc_getdpi (_r_config_getlong (L"ToolbarSize", PR_SIZE_ITEMHEIGHT), dpi_value), icon_small, icon_large);
 
-	config.hbmp_enable = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_SHIELD_ENABLE), icon_small);
-	config.hbmp_disable = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_SHIELD_DISABLE), icon_small);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_SHIELD_ENABLE), &GUID_ContainerFormatPng, icon_small, icon_small, &config.hbmp_enable);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_SHIELD_DISABLE), &GUID_ContainerFormatPng, icon_small, icon_small, &config.hbmp_disable);
 
-	config.hbmp_allow = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_ALLOW), icon_small);
-	config.hbmp_block = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_BLOCK), icon_small);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_ALLOW), &GUID_ContainerFormatPng, icon_small, icon_small, &config.hbmp_allow);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_BLOCK), &GUID_ContainerFormatPng, icon_small, icon_small, &config.hbmp_block);
 
 	// toolbar imagelist
 	if (config.himg_toolbar)
 	{
-		ImageList_SetIconSize (config.himg_toolbar, icon_size_toolbar, icon_size_toolbar);
+		_r_imagelist_setsize (config.himg_toolbar, icon_size_toolbar);
 	}
 	else
 	{
-		config.himg_toolbar = ImageList_Create (
-			icon_size_toolbar,
-			icon_size_toolbar,
-			ILC_COLOR32 | ILC_HIGHQUALITYSCALE,
-			RTL_NUMBER_OF (toolbar_ids),
-			RTL_NUMBER_OF (toolbar_ids)
-		);
+		_r_imagelist_create (icon_size_toolbar, icon_size_toolbar, ILC_COLOR32 | ILC_HIGHQUALITYSCALE, RTL_NUMBER_OF (toolbar_ids), RTL_NUMBER_OF (toolbar_ids), &config.himg_toolbar);
 	}
 
 	if (config.himg_toolbar)
 	{
-		for (SIZE_T i = 0; i < RTL_NUMBER_OF (toolbar_ids); i++)
+		for (ULONG_PTR i = 0; i < RTL_NUMBER_OF (toolbar_ids); i++)
 		{
-			hbitmap = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (toolbar_ids[i]), icon_size_toolbar);
+			_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (toolbar_ids[i]), &GUID_ContainerFormatPng, icon_size_toolbar, icon_size_toolbar, &hbitmap);
 
 			if (hbitmap)
-				ImageList_Add (config.himg_toolbar, hbitmap, NULL);
+				_r_imagelist_add (config.himg_toolbar, hbitmap, NULL, NULL);
 		}
 	}
 
 	if (config.htoolbar)
-		SendMessage (config.htoolbar, TB_SETIMAGELIST, 0, (LPARAM)config.himg_toolbar);
+		_r_toolbar_setimagelist (config.htoolbar, 0, config.himg_toolbar);
 
 	// rules imagelist (small)
 	if (config.himg_rules_small)
 	{
-		ImageList_SetIconSize (config.himg_rules_small, icon_small, icon_small);
+		_r_imagelist_setsize (config.himg_rules_small, icon_small);
 	}
 	else
 	{
-		config.himg_rules_small = ImageList_Create (
-			icon_small,
-			icon_small,
-			ILC_COLOR32 | ILC_HIGHQUALITYSCALE,
-			RTL_NUMBER_OF (rules_ids),
-			RTL_NUMBER_OF (rules_ids)
-		);
+		_r_imagelist_create (icon_small, icon_small, ILC_COLOR32 | ILC_HIGHQUALITYSCALE, RTL_NUMBER_OF (rules_ids), RTL_NUMBER_OF (rules_ids), &config.himg_rules_small);
 	}
 
 	if (config.himg_rules_small)
 	{
-		for (SIZE_T i = 0; i < RTL_NUMBER_OF (rules_ids); i++)
+		for (ULONG_PTR i = 0; i < RTL_NUMBER_OF (rules_ids); i++)
 		{
-			hbitmap = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (rules_ids[i]), icon_small);
+			_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (rules_ids[i]), &GUID_ContainerFormatPng, icon_small, icon_small, &hbitmap);
 
 			if (hbitmap)
-				ImageList_Add (config.himg_rules_small, hbitmap, NULL);
+				_r_imagelist_add (config.himg_rules_small, hbitmap, NULL, NULL);
 		}
 	}
 
 	// rules imagelist (large)
 	if (config.himg_rules_large)
 	{
-		ImageList_SetIconSize (config.himg_rules_large, icon_large, icon_large);
+		_r_imagelist_setsize (config.himg_rules_large, icon_large);
 	}
 	else
 	{
-		config.himg_rules_large = ImageList_Create (
-			icon_large,
-			icon_large,
-			ILC_COLOR32 | ILC_HIGHQUALITYSCALE,
-			RTL_NUMBER_OF (rules_ids),
-			RTL_NUMBER_OF (rules_ids)
-		);
+		_r_imagelist_create (icon_large, icon_large, ILC_COLOR32 | ILC_HIGHQUALITYSCALE, RTL_NUMBER_OF (rules_ids), RTL_NUMBER_OF (rules_ids), &config.himg_rules_large);
 	}
 
 	if (config.himg_rules_large)
 	{
-		for (SIZE_T i = 0; i < RTL_NUMBER_OF (rules_ids); i++)
+		for (ULONG_PTR i = 0; i < RTL_NUMBER_OF (rules_ids); i++)
 		{
-			hbitmap = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (rules_ids[i]), icon_large);
+			_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (rules_ids[i]), &GUID_ContainerFormatPng, icon_large, icon_large, &hbitmap);
 
 			if (hbitmap)
-				ImageList_Add (config.himg_rules_large, hbitmap, NULL);
+				_r_imagelist_add (config.himg_rules_large, hbitmap, NULL, NULL);
 		}
 	}
 }
@@ -811,7 +832,7 @@ HFONT _app_createfont (
 	logfont->lfCharSet = DEFAULT_CHARSET;
 	logfont->lfQuality = DEFAULT_QUALITY;
 
-	hfont = CreateFontIndirect (logfont);
+	hfont = CreateFontIndirectW (logfont);
 
 	return hfont;
 }
@@ -839,6 +860,7 @@ VOID _app_toolbar_init (
 	_In_ LONG dpi_value
 )
 {
+	REBARINFO ri = {0};
 	ULONG button_size;
 	LONG rebar_height;
 
@@ -846,14 +868,13 @@ VOID _app_toolbar_init (
 
 	_app_windowloadfont (dpi_value);
 
-	SendMessage (config.hrebar, RB_SETBARINFO, 0, (LPARAM)(&(REBARINFO)
-	{
-		sizeof (REBARINFO)
-	}));
+	ri.cbSize = sizeof (REBARINFO);
 
-	config.htoolbar = CreateWindowEx (
+	_r_wnd_sendmessage (config.hrebar, 0, RB_SETBARINFO, 0, (LPARAM)&ri);
+
+	config.htoolbar = CreateWindowExW (
 		0,
-		TOOLBARCLASSNAME,
+		TOOLBARCLASSNAMEW,
 		NULL,
 		WS_CHILD | WS_VISIBLE | CCS_NOPARENTALIGN | CCS_NODIVIDER | TBSTYLE_FLAT | TBSTYLE_LIST | TBSTYLE_TRANSPARENT | TBSTYLE_TOOLTIPS | TBSTYLE_AUTOSIZE,
 		CW_USEDEFAULT,
@@ -868,147 +889,51 @@ VOID _app_toolbar_init (
 
 	if (config.htoolbar)
 	{
-		_r_toolbar_setstyle (
-			config.hrebar,
-			IDC_TOOLBAR,
-			TBSTYLE_EX_DOUBLEBUFFER | TBSTYLE_EX_MIXEDBUTTONS | TBSTYLE_EX_HIDECLIPPEDBUTTONS
-		);
+		_r_toolbar_setstyle (config.hrebar, IDC_TOOLBAR, TBSTYLE_EX_DOUBLEBUFFER | TBSTYLE_EX_MIXEDBUTTONS | TBSTYLE_EX_HIDECLIPPEDBUTTONS);
 
-		SendMessage (config.htoolbar, WM_SETFONT, (WPARAM)config.wnd_font, TRUE); // fix font
-		SendMessage (config.htoolbar, TB_SETIMAGELIST, 0, (LPARAM)config.himg_toolbar);
+		_r_ctrl_setfont (config.htoolbar, 0, config.wnd_font); // fix font
+		_r_toolbar_setimagelist (config.htoolbar, 0, config.himg_toolbar);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_START,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			I_IMAGENONE
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_START, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, I_IMAGENONE);
 
 		_r_toolbar_addseparator (config.hrebar, IDC_TOOLBAR);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_OPENRULESEDITOR,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			8
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_OPENRULESEDITOR, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 8);
 
 		_r_toolbar_addseparator (config.hrebar, IDC_TOOLBAR);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_ENABLENOTIFICATIONS_CHK,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			4
-		);
-
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_ENABLELOG_CHK,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			5
-		);
-
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_ENABLEUILOG_CHK,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			10
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_ENABLENOTIFICATIONS_CHK, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 4);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_ENABLELOG_CHK, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 5);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_ENABLEUILOG_CHK, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 10);
 
 		_r_toolbar_addseparator (config.hrebar, IDC_TOOLBAR);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_REFRESH,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			2
-		);
-
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_SETTINGS,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			3
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_REFRESH, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 2);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_SETTINGS, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 3);
 
 		_r_toolbar_addseparator (config.hrebar, IDC_TOOLBAR);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_LOGSHOW,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			6
-		);
-
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_TRAY_LOGCLEAR,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			7
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_LOGSHOW, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 6);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_TRAY_LOGCLEAR, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 7);
 
 		_r_toolbar_addseparator (config.hrebar, IDC_TOOLBAR);
 
-		_r_toolbar_addbutton (
-			config.hrebar,
-			IDC_TOOLBAR,
-			IDM_DONATE,
-			0,
-			BTNS_BUTTON | BTNS_AUTOSIZE,
-			TBSTATE_ENABLED,
-			9
-		);
+		_r_toolbar_addbutton (config.hrebar, IDC_TOOLBAR, IDM_DONATE, 0, BTNS_BUTTON | BTNS_AUTOSIZE, TBSTATE_ENABLED, 9);
 
 		_r_toolbar_resize (config.hrebar, IDC_TOOLBAR);
 
 		// insert toolbar
 		button_size = _r_toolbar_getbuttonsize (config.hrebar, IDC_TOOLBAR);
 
-		_r_rebar_insertband (
-			hwnd,
-			IDC_REBAR,
-			REBAR_TOOLBAR_ID,
-			config.htoolbar,
-			RBBS_VARIABLEHEIGHT | RBBS_NOGRIPPER | RBBS_USECHEVRON,
-			LOWORD (button_size),
-			HIWORD (button_size)
-		);
+		_r_rebar_insertband (hwnd, IDC_REBAR, REBAR_TOOLBAR_ID, config.htoolbar, RBBS_VARIABLEHEIGHT | RBBS_NOGRIPPER | RBBS_USECHEVRON, LOWORD (button_size), HIWORD (button_size));
 	}
 
 	// insert searchbar
-	config.hsearchbar = CreateWindowEx (
+	config.hsearchbar = CreateWindowExW (
 		WS_EX_CLIENTEDGE,
-		WC_EDIT,
+		WC_EDITW,
 		NULL,
-		WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | ES_AUTOHSCROLL,
+		WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | ES_LEFT | ES_AUTOHSCROLL,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -1019,26 +944,16 @@ VOID _app_toolbar_init (
 		NULL
 	);
 
-	if (config.hsearchbar)
-	{
-		SendMessage (config.hsearchbar, WM_SETFONT, (WPARAM)config.wnd_font, TRUE); // fix font
+	if (!config.hsearchbar)
+		return;
 
-		_app_search_initialize (config.hsearchbar);
+	_r_ctrl_setfont (config.hsearchbar, 0, config.wnd_font); // fix font
 
-		rebar_height = _r_rebar_getheight (hwnd, IDC_REBAR);
+	_app_search_create (config.hsearchbar);
 
-		_r_rebar_insertband (
-			hwnd,
-			IDC_REBAR,
-			REBAR_SEARCH_ID,
-			config.hsearchbar,
-			RBBS_VARIABLEHEIGHT | RBBS_NOGRIPPER | RBBS_USECHEVRON,
-			_r_dc_getdpi (180, dpi_value),
-			20
-		);
+	rebar_height = _r_rebar_getheight (hwnd, IDC_REBAR);
 
-		_app_search_setvisible (hwnd, config.hsearchbar);
-	}
+	_app_search_setvisible (hwnd, config.hsearchbar, dpi_value);
 }
 
 VOID _app_toolbar_resize (
@@ -1046,16 +961,16 @@ VOID _app_toolbar_resize (
 	_In_ LONG dpi_value
 )
 {
-	REBARBANDINFO rbi;
+	REBARBANDINFOW rbi;
 	SIZE ideal_size = {0};
 	ULONG button_size;
 	UINT rebar_count;
 
 	_app_toolbar_setfont ();
 
-	SendMessage (config.htoolbar, TB_AUTOSIZE, 0, 0);
+	_r_wnd_sendmessage (config.htoolbar, 0, TB_AUTOSIZE, 0, 0);
 
-	rebar_count = (UINT)SendMessage (config.hrebar, RB_GETBANDCOUNT, 0, 0);
+	rebar_count = (UINT)_r_wnd_sendmessage (config.hrebar, 0, RB_GETBANDCOUNT, 0, 0);
 
 	for (UINT i = 0; i < rebar_count; i++)
 	{
@@ -1064,12 +979,12 @@ VOID _app_toolbar_resize (
 		rbi.cbSize = sizeof (rbi);
 		rbi.fMask = RBBIM_ID | RBBIM_CHILD | RBBIM_IDEALSIZE | RBBIM_CHILDSIZE;
 
-		if (!SendMessage (config.hrebar, RB_GETBANDINFO, (WPARAM)i, (LPARAM)&rbi))
+		if (!_r_wnd_sendmessage (config.hrebar, 0, RB_GETBANDINFO, (WPARAM)i, (LPARAM)&rbi))
 			continue;
 
 		if (rbi.wID == REBAR_TOOLBAR_ID)
 		{
-			if (!SendMessage (config.htoolbar, TB_GETIDEALSIZE, FALSE, (LPARAM)&ideal_size))
+			if (!_r_wnd_sendmessage (config.htoolbar, 0, TB_GETIDEALSIZE, FALSE, (LPARAM)&ideal_size))
 				continue;
 
 			button_size = _r_toolbar_getbuttonsize (config.hrebar, IDC_TOOLBAR);
@@ -1080,7 +995,7 @@ VOID _app_toolbar_resize (
 		}
 		else if (rbi.wID == REBAR_SEARCH_ID)
 		{
-			if (_r_wnd_isvisible (rbi.hwndChild))
+			if (_r_wnd_isvisible (rbi.hwndChild, FALSE))
 			{
 				rbi.cxIdeal = (UINT)_r_dc_getdpi (180, dpi_value);
 			}
@@ -1097,17 +1012,17 @@ VOID _app_toolbar_resize (
 			continue;
 		}
 
-		SendMessage (config.hrebar, RB_SETBANDINFO, (WPARAM)i, (LPARAM)&rbi);
+		_r_wnd_sendmessage (config.hrebar, 0, RB_SETBANDINFO, (WPARAM)i, (LPARAM)&rbi);
 	}
 }
 
 VOID _app_toolbar_setfont ()
 {
 	if (config.htoolbar)
-		SendMessage (config.htoolbar, WM_SETFONT, (WPARAM)config.wnd_font, TRUE); // fix font
+		_r_ctrl_setfont (config.htoolbar, 0, config.wnd_font); // fix font
 
 	if (config.hsearchbar)
-		SendMessage (config.hsearchbar, WM_SETFONT, (WPARAM)config.wnd_font, TRUE); // fix font
+		_r_ctrl_setfont (config.hsearchbar, 0, config.wnd_font); // fix font
 }
 
 VOID _app_window_resize (
@@ -1125,8 +1040,8 @@ VOID _app_window_resize (
 
 	_app_toolbar_resize (hwnd, dpi_value);
 
-	SendMessage (config.hrebar, WM_SIZE, 0, 0);
-	SendDlgItemMessage (hwnd, IDC_STATUSBAR, WM_SIZE, 0, 0);
+	_r_wnd_sendmessage (config.hrebar, 0, WM_SIZE, 0, 0);
+	_r_wnd_sendmessage (hwnd, IDC_STATUSBAR, WM_SIZE, 0, 0);
 
 	current_listview_id = _app_listview_getbytab (hwnd, -1);
 
@@ -1173,7 +1088,7 @@ VOID _app_window_resize (
 			_r_tab_adjustchild (hwnd, IDC_TAB, GetDlgItem (hwnd, listview_id));
 
 			if (listview_id == current_listview_id)
-				_app_listview_resize (hwnd, listview_id);
+				_app_listview_resize (hwnd, listview_id, FALSE);
 		}
 	}
 
@@ -1184,11 +1099,11 @@ VOID _app_refreshstatus (
 	_In_ HWND hwnd
 )
 {
-	ITEM_STATUS status;
-	PR_STRING text[STATUSBAR_PARTS_COUNT] = {0};
-	INT parts[STATUSBAR_PARTS_COUNT] = {0};
+	ITEM_STATUS status = {0};
+	PR_STRING string[STATUSBAR_PARTS_COUNT] = {0};
+	LONG parts[STATUSBAR_PARTS_COUNT] = {0};
 	LONG size[STATUSBAR_PARTS_COUNT] = {0};
-	LONG calculated_width;
+	LONG calculated_width = 0;
 	LONG spacing;
 	HWND hstatus;
 	HDC hdc;
@@ -1204,69 +1119,56 @@ VOID _app_refreshstatus (
 	if (!hdc)
 		return;
 
+	_r_dc_fixfont (hdc, hwnd, IDC_STATUSBAR); // fix
+
 	_app_getcount (&status);
 
 	dpi_value = _r_dc_getwindowdpi (hwnd);
 
-	_r_dc_fixwindowfont (hdc, hstatus); // fix
-
-	calculated_width = 0;
 	spacing = _r_dc_getdpi (16, dpi_value);
 
-	for (INT i = 0; i < RTL_NUMBER_OF (parts); i++)
+	for (ULONG_PTR i = 0; i < RTL_NUMBER_OF (parts); i++)
 	{
 		switch (i)
 		{
 			case 1:
 			{
-				text[i] = _r_format_string (
-					L"%s: %" TEXT (PR_SIZE_T),
-					_r_locale_getstring (IDS_STATUS_UNUSED_APPS),
-					status.apps_unused_count
-				);
-
+				string[i] = _r_format_string (L"%s: %" TEXT (PR_ULONG_PTR), _r_locale_getstring (IDS_STATUS_UNUSED_APPS), status.apps_unused_count);
 				break;
 			}
 
 			case 2:
 			{
-				text[i] = _r_format_string (
-					L"%s: %" TEXT (PR_SIZE_T),
-					_r_locale_getstring (IDS_STATUS_TIMER_APPS),
-					status.apps_timer_count
-				);
-
+				string[i] = _r_format_string (L"%s: %" TEXT (PR_ULONG_PTR), _r_locale_getstring (IDS_STATUS_TIMER_APPS), status.apps_timer_count);
 				break;
 			}
 		}
 
 		if (i)
 		{
-			if (text[i])
+			if (string[i])
 			{
-				size[i] = _r_dc_getfontwidth (hdc, &text[i]->sr) + spacing;
+				size[i] = _r_dc_getfontwidth (hdc, &string[i]->sr, NULL) + spacing;
+
 				calculated_width += size[i];
 			}
 		}
 	}
 
-	parts[0] = _r_ctrl_getwidth (hstatus, 0) -
-		calculated_width -
-		_r_dc_getsystemmetrics (SM_CXVSCROLL, dpi_value) -
-		(_r_dc_getsystemmetrics (SM_CXBORDER, dpi_value) * 4);
+	parts[0] = _r_ctrl_getwidth (hwnd, IDC_STATUSBAR) - calculated_width - _r_dc_getsystemmetrics (SM_CXVSCROLL, dpi_value) - (_r_dc_getsystemmetrics (SM_CXBORDER, dpi_value) * 4);
 
 	parts[1] = parts[0] + size[1];
 	parts[2] = parts[1] + size[2];
 
 	_r_status_setparts (hwnd, IDC_STATUSBAR, parts, RTL_NUMBER_OF (parts));
 
-	for (INT i = 1; i < STATUSBAR_PARTS_COUNT; i++)
+	for (ULONG_PTR i = 1; i < STATUSBAR_PARTS_COUNT; i++)
 	{
-		if (text[i])
+		if (string[i])
 		{
-			_r_status_settext (hwnd, IDC_STATUSBAR, i, text[i]->buffer);
+			_r_status_settext (hwnd, IDC_STATUSBAR, (LONG)i, string[i]->buffer);
 
-			_r_obj_dereference (text[i]);
+			_r_obj_dereference (string[i]);
 		}
 	}
 

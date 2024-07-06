@@ -15,27 +15,46 @@
 -------
 
 <p align="center">
-	<img src="https://www.henrypp.org/images/simplewall.png?cachefix" />
+	<img src="/images/simplewall.png?cache" />
 </p>
 
 ### Description:
 Simple tool to configure [Windows Filtering Platform (WFP)](https://docs.microsoft.com/en-us/windows/win32/fwp/windows-filtering-platform-start-page) which can configure network activity on your computer.
 
-The lightweight application is less than a megabyte, and it is compatible with Windows 7 SP1 and higher operating systems.
+The lightweight application is less than a megabyte, and it is compatible with Windows 8.1 and higher operating systems.
 You can download either the installer or portable version. For correct working you are require administrator rights.
 
+### System requirements:
+- Windows 7SP1 and above operating system.
+- [Visual C++ 2022 Redistributable package](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+
+### Donate:
+- [Bitcoin](https://www.blockchain.com/btc/address/1LrRTXPsvHcQWCNZotA9RcwjsGcRghG96c) (BTC)
+- [Ethereum](https://www.blockchain.com/explorer/addresses/eth/0xe2C84A62eb2a4EF154b19bec0c1c106734B95960) (ETC)
+- [Paypal](https://paypal.me/henrypp) (USD)
+- [Yandex Money](https://yoomoney.ru/to/4100115776040583) (RUB)
+
+### GPG Signature:
+Binaries have GPG signature `simplewall.exe.sig` in application folder.
+
+- Public key: [pubkey.asc](https://raw.githubusercontent.com/henrypp/builder/master/pubkey.asc) ([pgpkeys.eu](https://pgpkeys.eu/pks/lookup?op=index&fingerprint=on&search=0x5635B5FD))
+- Key ID: 0x5635B5FD
+- Fingerprint: D985 2361 1524 AB29 BE73 30AC 2881 20A7 5635 B5FD
+
 ### Nota bene:
-Keep in mind, simplewall is not a control UI over Windows Firewall, and does not interact in any level with Windows Firewall. It works over Windows Filtering Platform (WFP) which is a set of API and system services that provide a platform for creating network filtering applications. Windows Filtering Platform is a development technology and not a firewall itself, but simplewall is the tool that uses this technology.
+Keep in mind, simplewall is not a control UI over Windows Firewall, and does not interact in any level with Windows Firewall. It works
+over Windows Filtering Platform (WFP) which is a set of internal API and system services that provide a platform for creating network filtering
+applications. Windows Filtering Platform is a development technology and not a firewall itself, but simplewall is the tool that uses this technology.
 
 ### Features:
 - Simple interface without annoying pop ups
-- [Rules editor](https://github.com/henrypp/simplewall/wiki/Rules-editor) (create your own rules)
-- [Internal blocklist](https://github.com/crazy-max/WindowsSpyBlocker/wiki/dataSimplewall) (block Windows spy / telemetry)
+- [Rules editor](https://github.com/henrypp/simplewall#rules-editor) (create your own rules)
+- [Internal blocklist](https://crazymax.dev/WindowsSpyBlocker/blocking-rules/simplewall/) (block Windows spy / telemetry)
 - Dropped packets information with notification and logging to a file feature (win7+)
 - Allowed packets information with logging to a file feature (win8+)
 - Windows Subsystem for Linux (WSL) support
-- Windows Store support
 - Windows services support
+- Windows Store support
 - Free and open source
 - Localization support
 - IPv6 support
@@ -44,21 +63,27 @@ Keep in mind, simplewall is not a control UI over Windows Firewall, and does not
 To activate portable mode, create "simplewall.ini" in application folder, or move it from "%APPDATA%\Henry++\simplewall".
 ```
 
+### Reviews of idiots:
+[<img src="/images/idiot_n1.png" />](https://alternativeto.net/software/simplewall-firewall/about/)
+
+Look at them, he does not know about [.gitmodules](https://github.com/henrypp/simplewall/blob/master/.gitmodules) and how to use, lol.
+
+PS: Without idiots we are not to be fun, yeah!
+
 ### Installation:
 When install rules, you can choose two modes:
-- Permanent rules. Rules are working until you <a href="#uninstall">disable it manually</a>.
-- Temporary rules. Rules are reset after the next reboot.
+- Permanent rules - rules are working until you <a href="#uninstall">disable it manually</a>.
+- Temporary rules - rules are reset after the next reboot.
 
 ### Uninstall:
 When you uninstall simplewall, all previously configured filters stay alive in system.
 To remove all filters created by simplewall, start simplewall and press "Disable filters" button.
 
 ### Command line:
-List of arguments for `simplewall.exe`:
 
 ~~~
 -install - enable filtering.
--install -temp - enable filtering until reboot.
+-install -temp - enable filtering until next reboot.
 -install -silent - enable filtering without prompt.
 -uninstall - remove all installed filters.
 ~~~
@@ -68,7 +93,7 @@ simplewall have two types of custom user rules rules:
 - **Global rules:** rule applied for all applications.
 - **Special rules:** rule applied only for specified applications.
 
-<img src="https://www.henrypp.org/images/simplewall_rule3.png" />
+<img src="/images/simplewall_rules.png?cache" />
 
 _To set rule applications, open rule and then navigate to "Apps" tab._
 
@@ -303,7 +328,7 @@ This is working by method described [here](https://github.com/henrypp/simplewall
 </details>
 
 <details>
-<summary>Windows 7, Windows 8 and Windows 8.1:</summary>
+<summary>Windows 8.1:</summary>
 
 ---
 Open main window, Navigate into `System rules` tab and then enable `Windows Update service` rule.
@@ -313,8 +338,8 @@ Open main window, Navigate into `System rules` tab and then enable `Windows Upda
 
 #### Q: Other questions:
 - [Windows Security center integration (impossible)](https://stackoverflow.com/questions/3698285/how-can-i-tell-the-windows-security-center-that-im-an-antivirus/3698375#3698375)
+---
+- Website: [github.com/henrypp](https://github.com/henrypp)
+- Support: sforce5@mail.ru
 
-Website: [www.henrypp.org](https://www.henrypp.org)<br />
-Support: support@henrypp.org<br />
-<br />
-(c) 2016-2023 Henry++
+(c) 2016-2024 Henry++

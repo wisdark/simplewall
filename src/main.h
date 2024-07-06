@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -22,13 +22,11 @@
 #pragma comment(lib, "wintrust.lib")
 
 // log
-#define __FILENAME__ (PathFindFileName (TEXT (__FILE__)))
-
-#define DBG_ARG __FILENAME__, __LINE__
+#define DBG_ARG TEXT (__FILE__), __LINE__
 #define DBG_ARG_VAR file_name, line
 
 // guids
-DEFINE_GUID (GUID_TrayIcon, 0xdab4837e, 0xcb0f, 0x47da, 0x92, 0x22, 0x21, 0x20, 0x74, 0x9f, 0x5c, 0x41);
+DEFINE_GUID (GUID_TrayIcon, 0xDAB4837E, 0xCB0F, 0x47DA, 0x92, 0x22, 0x21, 0x20, 0x74, 0x9F, 0x5C, 0x41);
 
 // enums
 typedef enum _ENUM_TYPE_DATA
@@ -63,9 +61,12 @@ typedef enum _ENUM_INFO_DATA
 	INFO_PATH = 1,
 	INFO_BYTES_DATA,
 	INFO_DISPLAY_NAME,
+	INFO_COMMENT,
+	INFO_HASH,
 	INFO_TIMESTAMP,
 	INFO_TIMER,
 	INFO_LISTVIEW_ID,
+	INFO_DISABLE,
 	INFO_IS_ENABLED,
 	INFO_IS_READONLY,
 	INFO_IS_SILENT,
@@ -92,17 +93,13 @@ typedef enum _ENUM_INFO_DATA2
 
 #define PATH_NTOSKRNL L"\\ntoskrnl.exe"
 #define PATH_SVCHOST L"\\svchost.exe"
+#define PATH_WUSVC L"\\wusvc.exe"
 
 #define WINDOWSSPYBLOCKER_URL L"https://github.com/crazy-max/WindowsSpyBlocker"
 
-#define DIVIDER_COPY L", "
-#define DIVIDER_APP L"|"
-#define DIVIDER_RULE L";"
-#define DIVIDER_RULE_RANGE L'-'
-#define DIVIDER_TRIM L"\r\n "
-
-#define SZ_TAB L"   "
-#define SZ_TAB_CRLF L"\r\n" SZ_TAB
+#define SZ_TAB L"    "
+#define SZ_CRLF L"\r\n"
+#define SZ_TAB_CRLF SZ_CRLF SZ_TAB
 #define SZ_EMPTY L"<empty>"
 #define SZ_RULE_INTERNAL_MENU L"*"
 #define SZ_RULE_INTERNAL_TITLE L"Internal rule"
@@ -122,20 +119,26 @@ typedef enum _ENUM_INFO_DATA2
 
 #define SZ_LOG_TITLE L"Date,Username,Path,Address (" SZ_DIRECTION_LOCAL L")," \
 	L"Port (" SZ_DIRECTION_LOCAL L"),Address (" SZ_DIRECTION_REMOTE L"),Port (" SZ_DIRECTION_REMOTE L")," \
-	L"Protocol,Layer,Filter name,Filter ID,Direction,State\r\n"
+	L"Protocol,Layer,Filter name,Filter ID,Direction,State" SZ_CRLF
 
 #define SZ_LOG_BODY L"\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"," \
-	L"\"%s\",\"%s\",\"#%" TEXT (PRIu64) L"\",\"%s\",\"%s\"\r\n"
+	L"\"%s\",\"%s\",\"#%" TEXT (PRIu64) L"\",\"%s\",\"%s\"" SZ_CRLF
 
 #define SZ_WARNING_ME L"If you disallow this, you cannot use resolve network addresses option. Continue?"
 #define SZ_WARNING_SVCHOST L"Be careful, through service host (svchost.exe)" \
 	L"internet traffic can let out through unexpected ways. Continue?"
 
-#define SZ_HELP L"\"simplewall.exe -install\" - enable filtering.\r\n" \
-	L"\"simplewall.exe -install -temp\" - enable filtering until reboot.\r\n" \
-	L"\"simplewall.exe -install -silent\" - enable filtering without prompt.\r\n" \
-	L"\"simplewall.exe -uninstall\" - remove all installed filters.\r\n" \
-	L"\"simplewall.exe -help\" - show this message."
+#define SZ_HELP L"\"simplewall.exe -install\" - enable filtering." SZ_CRLF \
+	L"\"simplewall.exe -install -temp\" - enable filtering until reboot." SZ_CRLF \
+	L"\"simplewall.exe -install -silent\" - enable filtering without prompt." SZ_CRLF \
+	L"\"simplewall.exe -uninstall\" - remove all installed filters." SZ_CRLF \
+	L"\"simlewall.exe -help\" - show this message."
+
+#define DIVIDER_COPY L", "
+#define DIVIDER_APP L"|"
+#define DIVIDER_RULE L";"
+#define DIVIDER_RULE_RANGE L'-'
+#define DIVIDER_TRIM SZ_CRLF L" "
 
 #define BACKUP_HOURS_PERIOD _r_calc_hours2seconds (4) // make backup every X hour(s) (default)
 
@@ -145,8 +148,8 @@ typedef enum _ENUM_INFO_DATA2
 #define TRANSACTION_TIMEOUT 9000
 
 // ui
-#define ICONS_MENU 5
-#define LANG_MENU 6
+#define ICONS_MENU 6
+#define LANG_MENU 7
 #define NOTIFICATIONS_ID 4
 #define LOGGING_ID 5
 #define ERRLOG_ID 6
@@ -154,13 +157,13 @@ typedef enum _ENUM_INFO_DATA2
 #define REBAR_TOOLBAR_ID 0
 #define REBAR_SEARCH_ID 1
 
-#define LV_HIDDEN_GROUP_ID 17
+#define LV_HIDDEN_GROUP_ID 13
 
 #define STATUSBAR_PARTS_COUNT 3
 
 // notifications
-#define NOTIFY_TIMER_SAFETY_ID 666
 #define NOTIFY_TIMER_SAFETY_TIMEOUT 900
+#define NOTIFY_TIMER_SAFETY_ID 666
 
 #define NOTIFY_TIMEOUT_DEFAULT 60 // sec.
 
@@ -171,8 +174,9 @@ typedef enum _ENUM_INFO_DATA2
 #define LV_COLOR_SPECIAL RGB (255, 255, 170)
 #define LV_COLOR_SIGNED RGB (175, 228, 163)
 #define LV_COLOR_PICO RGB (51, 153, 255)
-#define LV_COLOR_SYSTEM RGB(151, 196, 251)
+#define LV_COLOR_SYSTEM RGB (151, 196, 251)
 #define LV_COLOR_CONNECTION RGB(255, 168, 242)
+#define LV_COLOR_UNDELETE RGB(211, 211, 211)
 
 // memory limitation for 1 rule
 #define RULE_NAME_CCH_MAX 64
@@ -180,7 +184,7 @@ typedef enum _ENUM_INFO_DATA2
 
 typedef struct _STATIC_DATA
 {
-	WCHAR windows_dir_buffer[MAX_PATH];
+	WCHAR windows_dir_buffer[256];
 	R_STRINGREF windows_dir;
 
 	PR_STRING search_string;
@@ -188,17 +192,18 @@ typedef struct _STATIC_DATA
 	PR_STRING my_path;
 	PR_STRING ntoskrnl_path;
 	PR_STRING svchost_path;
+	PR_STRING wusvc_path;
 	PR_STRING system_path;
 
-	PSID pbuiltin_current_sid;
-	PSID pbuiltin_netops_sid;
-	PSID pbuiltin_admins_sid;
+	PSID builtin_current_sid;
+	PSID builtin_netops_sid;
+	PSID builtin_admins_sid;
 
-	PR_BYTE pservice_mpssvc_sid;
-	PR_BYTE pservice_nlasvc_sid;
-	PR_BYTE pservice_policyagent_sid;
-	PR_BYTE pservice_rpcss_sid;
-	PR_BYTE pservice_wdiservicehost_sid;
+	PR_BYTE service_mpssvc_sid;
+	PR_BYTE service_nlasvc_sid;
+	PR_BYTE service_policyagent_sid;
+	PR_BYTE service_rpcss_sid;
+	PR_BYTE service_wdiservicehost_sid;
 
 	HIMAGELIST himg_toolbar;
 	HIMAGELIST himg_rules_small;
@@ -209,9 +214,12 @@ typedef struct _STATIC_DATA
 	HBITMAP hbmp_allow;
 	HBITMAP hbmp_block;
 
+	HANDLE hmonitor_thread;
+
+	HANDLE hnotify_evt;
+
 	volatile HANDLE hlogfile;
 	volatile HANDLE hnetevent;
-	volatile HANDLE hnotify_evt;
 	volatile HWND hnotification;
 	volatile HICON htray_icon;
 
@@ -228,9 +236,11 @@ typedef struct _STATIC_DATA
 	ULONG_PTR color_pico;
 	ULONG_PTR color_system;
 	ULONG_PTR color_network;
+	ULONG_PTR color_nonremovable;
 
 	ULONG_PTR ntoskrnl_hash;
 	ULONG_PTR svchost_hash;
+	ULONG_PTR wusvc_hash;
 	ULONG_PTR my_hash;
 
 	BOOLEAN is_notifytimeout;
@@ -257,6 +267,8 @@ typedef struct _ITEM_APP
 	PR_STRING display_name;
 	PR_STRING short_name;
 	PR_STRING real_path;
+	PR_STRING comment;
+	PR_STRING hash;
 
 	PVOID notification; // PITEM_LOG
 	PR_BYTE bytes; // service - PSECURITY_DESCRIPTOR / uwp - PSID (win8+)
@@ -290,14 +302,15 @@ typedef struct _ITEM_APP_INFO
 	PR_STRING signature_info;
 	PR_STRING version_info;
 
-	volatile LONG large_icon_id;
-	volatile LONG lock;
-
 	ULONG_PTR app_hash;
+
+	LONG icon_id;
 
 	ENUM_TYPE_DATA type;
 
 	INT listview_id;
+
+	BOOLEAN is_loaded;
 } ITEM_APP_INFO, *PITEM_APP_INFO;
 
 typedef struct _ITEM_FILTER_CONFIG
@@ -313,6 +326,7 @@ typedef struct _ITEM_RULE
 	PR_ARRAY guids;
 
 	PR_STRING name;
+	PR_STRING comment;
 	PR_STRING rule_remote;
 	PR_STRING rule_local;
 	PR_STRING protocol_str;
@@ -443,13 +457,13 @@ typedef struct _ITEM_LOG
 
 typedef struct _ITEM_STATUS
 {
-	SIZE_T apps_count;
-	SIZE_T apps_timer_count;
-	SIZE_T apps_unused_count;
-	SIZE_T rules_count;
-	SIZE_T rules_global_count;
-	SIZE_T rules_predefined_count;
-	SIZE_T rules_user_count;
+	ULONG_PTR apps_count;
+	ULONG_PTR apps_timer_count;
+	ULONG_PTR apps_unused_count;
+	ULONG_PTR rules_count;
+	ULONG_PTR rules_global_count;
+	ULONG_PTR rules_predefined_count;
+	ULONG_PTR rules_user_count;
 } ITEM_STATUS, *PITEM_STATUS;
 
 typedef struct _ITEM_CONTEXT
@@ -461,20 +475,19 @@ typedef struct _ITEM_CONTEXT
 	{
 		struct
 		{
-			union
-			{
-				PVOID base_address;
-
-				PITEM_LOG ptr_log;
-				PITEM_NETWORK ptr_network;
-			} DUMMYUNIONNAME2;
-
+			PVOID base_address;
 			LPARAM lparam;
 		} DUMMYSTRUCTNAME;
 
 		ULONG_PTR is_install;
 	} DUMMYUNIONNAME;
 } ITEM_CONTEXT, *PITEM_CONTEXT;
+
+typedef struct _PACKAGE_CONTEXT
+{
+	WCHAR path[128];
+	BOOLEAN is_byname;
+} PACKAGE_CONTEXT, *PPACKAGE_CONTEXT;
 
 typedef struct _ITEM_COLOR
 {
@@ -527,7 +540,7 @@ typedef struct _ITEM_LOG_CALLBACK
 		ULONG_PTR local_addr4;
 	} DUMMYUNIONNAME2;
 
-	const FILETIME *timestamp;
+	FILETIME timestamp;
 	PUINT8 app_id;
 	PSID package_id;
 	PSID user_id;

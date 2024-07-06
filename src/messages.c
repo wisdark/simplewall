@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2021-2023 Henry++
+// Copyright (c) 2021-2024 Henry++
 
 #include "global.h"
 
@@ -8,11 +8,11 @@ VOID _app_message_initialize (
 )
 {
 	ENUM_INSTALL_TYPE install_type;
-
 	HMENU hmenu;
 	LONG icon_size;
 	LONG view_type;
 	UINT menu_id;
+	BOOLEAN is_enabled;
 
 	install_type = _wfp_getinstalltype ();
 
@@ -27,37 +27,10 @@ VOID _app_message_initialize (
 		if (_r_config_getboolean (L"IsInternalRulesDisabled", FALSE))
 			_r_menu_enableitem (hmenu, 4, MF_BYPOSITION, FALSE);
 
-		_r_menu_checkitem (
-			hmenu,
-			IDM_ALWAYSONTOP_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"AlwaysOnTop", FALSE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_AUTOSIZECOLUMNS_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"AutoSizeColumns", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_SHOWFILENAMESONLY_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"ShowFilenames", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_SHOWSEARCHBAR_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsShowSearchBar", TRUE)
-		);
+		_r_menu_checkitem (hmenu, IDM_ALWAYSONTOP_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"AlwaysOnTop", FALSE));
+		_r_menu_checkitem (hmenu, IDM_AUTOSIZECOLUMNS_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"AutoSizeColumns", TRUE));
+		_r_menu_checkitem (hmenu, IDM_SHOWFILENAMESONLY_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"ShowFilenames", TRUE));
+		_r_menu_checkitem (hmenu, IDM_SHOWSEARCHBAR_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsShowSearchBar", TRUE));
 
 		view_type = _r_calc_clamp (_r_config_getlong (L"ViewType", LV_VIEW_DETAILS), LV_VIEW_ICON, LV_VIEW_MAX);
 
@@ -92,113 +65,32 @@ VOID _app_message_initialize (
 		}
 
 		_r_menu_checkitem (hmenu, IDM_SIZE_SMALL, IDM_SIZE_EXTRALARGE, MF_BYCOMMAND, menu_id);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_ICONSISHIDDEN,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsIconsHidden", FALSE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_LOADONSTARTUP_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_autorun_isenabled ()
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_STARTMINIMIZED_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsStartMinimized", FALSE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_SKIPUACWARNING_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_skipuac_isenabled ()
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_CHECKUPDATES_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_update_isenabled (FALSE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_RULE_BLOCKOUTBOUND,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"BlockOutboundConnections", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_RULE_BLOCKINBOUND,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"BlockInboundConnections", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_RULE_ALLOWLOOPBACK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"AllowLoopbackConnections", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_RULE_ALLOW6TO4,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"AllowIPv6", TRUE)
-		);
-
-		_r_menu_checkitem (
-			hmenu,
-			IDM_RULE_ALLOWWINDOWSUPDATE,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsWUFixEnabled", FALSE)
-		);
+		_r_menu_checkitem (hmenu, IDM_ICONSISHIDDEN, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsIconsHidden", FALSE));
+		_r_menu_checkitem (hmenu, IDM_USEDARKTHEME_CHK, 0, MF_BYCOMMAND, _r_theme_isenabled ());
+		_r_menu_checkitem (hmenu, IDM_LOADONSTARTUP_CHK, 0, MF_BYCOMMAND, _r_autorun_isenabled ());
+		_r_menu_checkitem (hmenu, IDM_STARTMINIMIZED_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsStartMinimized", FALSE));
+		_r_menu_checkitem (hmenu, IDM_SKIPUACWARNING_CHK, 0, MF_BYCOMMAND, _r_skipuac_isenabled ());
+		_r_menu_checkitem (hmenu, IDM_CHECKUPDATES_CHK, 0, MF_BYCOMMAND, _r_update_isenabled (FALSE));
+		_r_menu_checkitem (hmenu, IDM_RULE_BLOCKOUTBOUND, 0, MF_BYCOMMAND, _r_config_getboolean (L"BlockOutboundConnections", TRUE));
+		_r_menu_checkitem (hmenu, IDM_RULE_BLOCKINBOUND, 0, MF_BYCOMMAND, _r_config_getboolean (L"BlockInboundConnections", TRUE));
+		_r_menu_checkitem (hmenu, IDM_RULE_ALLOWLOOPBACK, 0, MF_BYCOMMAND, _r_config_getboolean (L"AllowLoopbackConnections", TRUE));
+		_r_menu_checkitem (hmenu, IDM_RULE_ALLOW6TO4, 0, MF_BYCOMMAND, _r_config_getboolean (L"AllowIPv6", TRUE));
+		_r_menu_checkitem (hmenu, IDM_RULE_ALLOWWINDOWSUPDATE, 0, MF_BYCOMMAND, _app_wufixenabled ());
 
 		if (!_r_sys_isosversiongreaterorequal (WINDOWS_10))
 			_r_menu_enableitem (hmenu, IDM_RULE_ALLOWWINDOWSUPDATE, MF_BYCOMMAND, FALSE);
 
-		_r_menu_checkitem (
-			hmenu,
-			IDM_USECERTIFICATES_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsCertificatesEnabled", TRUE)
-		);
+		_r_menu_checkitem (hmenu, IDM_PROFILETYPE_PLAIN, IDM_PROFILETYPE_ENCRYPTED, MF_BYCOMMAND, IDM_PROFILETYPE_PLAIN + _r_calc_clamp (_r_config_getlong (L"ProfileType", 0), 0, 2));
 
-		_r_menu_checkitem (
-			hmenu,
-			IDM_USENETWORKRESOLUTION_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsNetworkResolutionsEnabled", FALSE)
-		);
+		is_enabled = _r_config_getboolean (L"IsHashesEnabled", TRUE);
 
-		_r_menu_checkitem (
-			hmenu,
-			IDM_USEREFRESHDEVICES_CHK,
-			0,
-			MF_BYCOMMAND,
-			_r_config_getboolean (L"IsRefreshDevices", TRUE)
-		);
+		_r_menu_checkitem (hmenu, IDM_USECERTIFICATES_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsCertificatesEnabled", TRUE));
+		_r_menu_checkitem (hmenu, IDM_KEEPUNUSED_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsKeepUnusedApps", TRUE));
+		_r_menu_checkitem (hmenu, IDM_USEHASHES_CHK, 0, MF_BYCOMMAND, is_enabled);
+		_r_menu_checkitem (hmenu, IDM_USENETWORKRESOLUTION_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsNetworkResolutionsEnabled", FALSE));
+		_r_menu_checkitem (hmenu, IDM_USEAPPMONITOR_CHK, 0, MF_BYCOMMAND, _r_config_getboolean (L"IsEnableAppMonitor", FALSE));
+
+		_r_menu_enableitem (hmenu, IDM_USEAPPMONITOR_CHK, MF_BYCOMMAND, is_enabled);
 
 		_r_menu_checkitem (
 			hmenu,
@@ -260,10 +152,10 @@ VOID _app_message_localize (
 	_In_ HWND hwnd
 )
 {
+	PR_STRING localized_string = NULL;
+	LPCWSTR recommended_string;
 	HMENU hmenu;
 	HMENU hsubmenu;
-	LPCWSTR recommended_string;
-	PR_STRING localized_string = NULL;
 	LONG dpi_value;
 	INT listview_id;
 	UINT locale_id;
@@ -274,8 +166,6 @@ VOID _app_message_localize (
 
 	if (hmenu)
 	{
-		recommended_string = _r_locale_getstring (IDS_RECOMMENDED);
-
 		_r_menu_setitemtext (hmenu, 0, TRUE, _r_locale_getstring (IDS_FILE));
 		_r_menu_setitemtext (hmenu, 1, TRUE, _r_locale_getstring (IDS_EDIT));
 		_r_menu_setitemtext (hmenu, 2, TRUE, _r_locale_getstring (IDS_VIEW));
@@ -342,6 +232,14 @@ VOID _app_message_localize (
 
 		_r_menu_setitemtextformat (
 			hmenu,
+			IDM_LOGCLEAR,
+			FALSE,
+			L"%s\tCtrl+X",
+			_r_locale_getstring (IDS_LOGCLEAR)
+		);
+
+		_r_menu_setitemtextformat (
+			hmenu,
 			IDM_REFRESH,
 			FALSE,
 			L"%s\tF5",
@@ -363,6 +261,8 @@ VOID _app_message_localize (
 		_r_menu_setitemtext (hmenu, IDM_VIEW_TILE, FALSE, _r_locale_getstring (IDS_VIEW_TILE));
 
 		_r_menu_setitemtext (hmenu, IDM_ICONSISHIDDEN, FALSE, _r_locale_getstring (IDS_ICONSISHIDDEN));
+
+		_r_menu_setitemtext (hmenu, IDM_USEDARKTHEME_CHK, FALSE, _r_locale_getstring (IDS_USEDARKTHEME));
 
 		hsubmenu = GetSubMenu (hmenu, 2);
 
@@ -394,53 +294,31 @@ VOID _app_message_localize (
 		_r_menu_setitemtext (hmenu, IDM_RULE_ALLOWLOOPBACK, FALSE, _r_locale_getstring (IDS_RULE_ALLOWLOOPBACK));
 		_r_menu_setitemtext (hmenu, IDM_RULE_ALLOW6TO4, FALSE, _r_locale_getstring (IDS_RULE_ALLOW6TO4));
 
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_RULE_ALLOWWINDOWSUPDATE,
-			FALSE,
-			_r_locale_getstring (IDS_RULE_ALLOWWINDOWSUPDATE)
-		);
+		_r_menu_setitemtext (hmenu, IDM_RULE_ALLOWWINDOWSUPDATE, FALSE, _r_locale_getstring (IDS_RULE_ALLOWWINDOWSUPDATE));
 
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_USENETWORKRESOLUTION_CHK,
-			FALSE,
-			_r_locale_getstring (IDS_USENETWORKRESOLUTION_CHK)
-		);
+		_r_menu_setitemtext (hmenu, IDM_PROFILETYPE_PLAIN, FALSE, L"Plain");
+		_r_menu_setitemtext (hmenu, IDM_PROFILETYPE_COMPRESSED, FALSE, L"Compressed");
+		_r_menu_setitemtext (hmenu, IDM_PROFILETYPE_ENCRYPTED, FALSE, L"Encrypted");
 
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_USECERTIFICATES_CHK,
-			FALSE,
-			_r_locale_getstring (IDS_USECERTIFICATES_CHK)
-		);
-
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_USEREFRESHDEVICES_CHK,
-			FALSE,
-			_r_locale_getstring (IDS_USEREFRESHDEVICES_CHK)
-		);
+		_r_menu_setitemtext (hmenu, IDM_USENETWORKRESOLUTION_CHK, FALSE, _r_locale_getstring (IDS_USENETWORKRESOLUTION_CHK));
+		_r_menu_setitemtext (hmenu, IDM_USECERTIFICATES_CHK, FALSE, _r_locale_getstring (IDS_USECERTIFICATES_CHK));
+		_r_menu_setitemtext (hmenu, IDM_KEEPUNUSED_CHK, FALSE, _r_locale_getstring (IDS_KEEPUNUSED_CHK));
+		_r_menu_setitemtext (hmenu, IDM_USEHASHES_CHK, FALSE, _r_locale_getstring (IDS_USEHASHES_CHK));
+		_r_menu_setitemtext (hmenu, IDM_USEAPPMONITOR_CHK, FALSE, _r_locale_getstring (IDS_USEAPPMONITOR_CHK));
 
 		hsubmenu = GetSubMenu (hmenu, 3);
 
 		if (hsubmenu)
+		{
 			_r_menu_setitemtext (hsubmenu, 5, TRUE, _r_locale_getstring (IDS_TRAY_RULES));
+			_r_menu_setitemtext (hsubmenu, 6, TRUE, _r_locale_getstring (IDS_PROFILE_TYPE));
+		}
+
+		recommended_string = _r_locale_getstring (IDS_RECOMMENDED);
 
 		// blocklist submenu
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_SPY_DISABLE,
-			FALSE,
-			_r_locale_getstring (IDS_DISABLE)
-		);
-
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_SPY_ALLOW,
-			FALSE,
-			_r_locale_getstring (IDS_ACTION_ALLOW)
-		);
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_SPY_DISABLE, FALSE, _r_locale_getstring (IDS_DISABLE));
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_SPY_ALLOW, FALSE, _r_locale_getstring (IDS_ACTION_ALLOW));
 
 		_r_menu_setitemtextformat (
 			hmenu,
@@ -460,19 +338,8 @@ VOID _app_message_localize (
 			recommended_string
 		);
 
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_UPDATE_ALLOW,
-			FALSE,
-			_r_locale_getstring (IDS_ACTION_ALLOW)
-		);
-
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_UPDATE_BLOCK,
-			FALSE,
-			_r_locale_getstring (IDS_ACTION_BLOCK)
-		);
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_UPDATE_ALLOW, FALSE, _r_locale_getstring (IDS_ACTION_ALLOW));
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_UPDATE_BLOCK, FALSE, _r_locale_getstring (IDS_ACTION_BLOCK));
 
 		_r_menu_setitemtextformat (
 			hmenu,
@@ -483,19 +350,8 @@ VOID _app_message_localize (
 			recommended_string
 		);
 
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_EXTRA_ALLOW,
-			FALSE,
-			_r_locale_getstring (IDS_ACTION_ALLOW)
-		);
-
-		_r_menu_setitemtext (
-			hmenu,
-			IDM_BLOCKLIST_EXTRA_BLOCK,
-			FALSE,
-			_r_locale_getstring (IDS_ACTION_BLOCK)
-		);
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_EXTRA_ALLOW, FALSE, _r_locale_getstring (IDS_ACTION_ALLOW));
+		_r_menu_setitemtext (hmenu, IDM_BLOCKLIST_EXTRA_BLOCK, FALSE, _r_locale_getstring (IDS_ACTION_BLOCK));
 
 		hsubmenu = GetSubMenu (hmenu, 4);
 
@@ -542,10 +398,7 @@ VOID _app_message_localize (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_format_string (L"%s...", _r_locale_getstring (IDS_OPENRULESEDITOR))
-	);
+	_r_obj_movereference (&localized_string, _r_format_string (L"%s...", _r_locale_getstring (IDS_OPENRULESEDITOR)));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -577,10 +430,7 @@ VOID _app_message_localize (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_format_string (L"%s (session only)", _r_locale_getstring (IDS_ENABLEUILOG_CHK))
-	);
+	_r_obj_movereference (&localized_string, _r_format_string (L"%s (session only)", _r_locale_getstring (IDS_ENABLEUILOG_CHK)));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -592,10 +442,7 @@ VOID _app_message_localize (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_format_string (L"%s (Ctrl+I)", _r_locale_getstring (IDS_LOGSHOW))
-	);
+	_r_obj_movereference (&localized_string, _r_format_string (L"%s (Ctrl+I)", _r_locale_getstring (IDS_LOGSHOW)));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -607,10 +454,7 @@ VOID _app_message_localize (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_format_string (L"%s (Ctrl+X)", _r_locale_getstring (IDS_LOGCLEAR))
-	);
+	_r_obj_movereference (&localized_string, _r_format_string (L"%s (Ctrl+X)", _r_locale_getstring (IDS_LOGCLEAR)));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -632,10 +476,7 @@ VOID _app_message_localize (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_format_string (L"%s... (Ctrl+F)", _r_locale_getstring (IDS_FIND))
-	);
+	_r_obj_movereference (&localized_string, _r_format_string (L"%s... (Ctrl+F)", _r_locale_getstring (IDS_FIND)));
 
 	_r_edit_setcuebanner (config.hrebar, IDC_SEARCH, localized_string->buffer);
 
@@ -647,155 +488,144 @@ VOID _app_message_localize (
 	{
 		listview_id = _app_listview_getbytab (hwnd, i);
 
-		if (listview_id == IDC_APPS_PROFILE)
+		switch (listview_id)
 		{
-			locale_id = IDS_TAB_APPS;
-		}
-		else if (listview_id == IDC_APPS_SERVICE)
-		{
-			locale_id = IDS_TAB_SERVICES;
-		}
-		else if (listview_id == IDC_APPS_UWP)
-		{
-			locale_id = IDS_TAB_PACKAGES;
-		}
-		else if (listview_id == IDC_RULES_BLOCKLIST)
-		{
-			locale_id = IDS_TRAY_BLOCKLIST_RULES;
-		}
-		else if (listview_id == IDC_RULES_SYSTEM)
-		{
-			locale_id = IDS_TRAY_SYSTEM_RULES;
-		}
-		else if (listview_id == IDC_RULES_CUSTOM)
-		{
-			locale_id = IDS_TRAY_USER_RULES;
-		}
-		else if (listview_id == IDC_NETWORK)
-		{
-			locale_id = IDS_TAB_NETWORK;
-		}
-		else if (listview_id == IDC_LOG)
-		{
-			locale_id = IDS_TITLE_LOGGING;
-		}
-		else
-		{
-			continue;
+			case IDC_APPS_PROFILE:
+			{
+				locale_id = IDS_TAB_APPS;
+				break;
+			}
+
+			case IDC_APPS_SERVICE:
+			{
+				locale_id = IDS_TAB_SERVICES;
+				break;
+			}
+
+			case IDC_APPS_UWP:
+			{
+				locale_id = IDS_TAB_PACKAGES;
+				break;
+			}
+
+			case IDC_RULES_BLOCKLIST:
+			{
+				locale_id = IDS_TRAY_BLOCKLIST_RULES;
+				break;
+			}
+
+			case IDC_RULES_SYSTEM:
+			{
+				locale_id = IDS_TRAY_SYSTEM_RULES;
+				break;
+			}
+
+			case IDC_RULES_CUSTOM:
+			{
+				locale_id = IDS_TRAY_USER_RULES;
+				break;
+			}
+
+			case IDC_NETWORK:
+			{
+				locale_id = IDS_TAB_NETWORK;
+				break;
+			}
+
+			case IDC_LOG:
+			{
+				locale_id = IDS_TITLE_LOGGING;
+				break;
+			}
+
+			default:
+			{
+				continue;
+			}
 		}
 
 		_r_tab_setitem (hwnd, IDC_TAB, i, _r_locale_getstring (locale_id), I_IMAGENONE, 0);
 
-		if (listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP)
+		switch (listview_id)
 		{
-			_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_ADDED), 0);
-		}
-		else if (listview_id >= IDC_RULES_BLOCKLIST && listview_id <= IDC_RULES_CUSTOM)
-		{
-			_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_PROTOCOL), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 2, _r_locale_getstring (IDS_DIRECTION), 0);
-		}
-		else if (listview_id == IDC_NETWORK)
-		{
-			_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
+			case IDC_APPS_PROFILE:
+			case IDC_APPS_SERVICE:
+			case IDC_APPS_UWP:
+			{
+				_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_ADDED), 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_ADDRESS))
-			);
+				break;
+			}
 
-			_r_listview_setcolumn (hwnd, listview_id, 1, localized_string->buffer, 0);
+			case IDC_RULES_BLOCKLIST:
+			case IDC_RULES_SYSTEM:
+			case IDC_RULES_CUSTOM:
+			{
+				_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_PROTOCOL), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 2, _r_locale_getstring (IDS_DIRECTION), 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_HOST))
-			);
+				break;
+			}
 
-			_r_listview_setcolumn (hwnd, listview_id, 2, localized_string->buffer, 0);
+			case IDC_NETWORK:
+			{
+				_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_PORT))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_ADDRESS)));
+				_r_listview_setcolumn (hwnd, listview_id, 1, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 3, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_HOST)));
+				_r_listview_setcolumn (hwnd, listview_id, 2, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_ADDRESS))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_PORT)));
+				_r_listview_setcolumn (hwnd, listview_id, 3, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 4, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_ADDRESS)));
+				_r_listview_setcolumn (hwnd, listview_id, 4, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_HOST))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_HOST)));
+				_r_listview_setcolumn (hwnd, listview_id, 5, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 5, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_PORT)));
+				_r_listview_setcolumn (hwnd, listview_id, 6, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_PORT))
-			);
+				_r_listview_setcolumn (hwnd, listview_id, 7, _r_locale_getstring (IDS_PROTOCOL), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 8, _r_locale_getstring (IDS_STATE), 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 6, localized_string->buffer, 0);
+				break;
+			}
 
-			_r_listview_setcolumn (hwnd, listview_id, 7, _r_locale_getstring (IDS_PROTOCOL), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 8, _r_locale_getstring (IDS_STATE), 0);
-		}
-		else if (listview_id == IDC_LOG)
-		{
-			_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_DATE), 0);
+			case IDC_LOG:
+			{
+				_r_listview_setcolumn (hwnd, listview_id, 0, _r_locale_getstring (IDS_NAME), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 1, _r_locale_getstring (IDS_DATE), 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_ADDRESS))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_ADDRESS)));
+				_r_listview_setcolumn (hwnd, listview_id, 2, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 2, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_HOST)));
+				_r_listview_setcolumn (hwnd, listview_id, 3, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_HOST))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_PORT)));
+				_r_listview_setcolumn (hwnd, listview_id, 4, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 3, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_ADDRESS)));
+				_r_listview_setcolumn (hwnd, listview_id, 5, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_LOCAL L")", _r_locale_getstring (IDS_PORT))
-			);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_HOST)));
+				_r_listview_setcolumn (hwnd, listview_id, 6, localized_string->buffer, 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 4, localized_string->buffer, 0);
+				_r_obj_movereference (&localized_string, _r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_PORT)));
+				_r_listview_setcolumn (hwnd, listview_id, 7, localized_string->buffer, 0);
 
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_ADDRESS))
-			);
+				_r_listview_setcolumn (hwnd, listview_id, 8, _r_locale_getstring (IDS_PROTOCOL), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 9, _r_locale_getstring (IDS_DIRECTION), 0);
+				_r_listview_setcolumn (hwnd, listview_id, 10, _r_locale_getstring (IDS_FILTER), 0);
 
-			_r_listview_setcolumn (hwnd, listview_id, 5, localized_string->buffer, 0);
-
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_HOST))
-			);
-
-			_r_listview_setcolumn (hwnd, listview_id, 6, localized_string->buffer, 0);
-
-			_r_obj_movereference (
-				&localized_string,
-				_r_format_string (L"%s (" SZ_DIRECTION_REMOTE L")", _r_locale_getstring (IDS_PORT))
-			);
-
-			_r_listview_setcolumn (hwnd, listview_id, 7, localized_string->buffer, 0);
-
-			_r_listview_setcolumn (hwnd, listview_id, 8, _r_locale_getstring (IDS_PROTOCOL), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 9, _r_locale_getstring (IDS_DIRECTION), 0);
-			_r_listview_setcolumn (hwnd, listview_id, 10, _r_locale_getstring (IDS_FILTER), 0);
+				break;
+			}
 		}
 	}
 
@@ -812,29 +642,63 @@ VOID _app_message_uninitialize (
 	_r_tray_destroy (hwnd, &GUID_TrayIcon);
 }
 
+VOID _app_generate_appmenu (
+	_In_ HMENU hmenu,
+	_In_ HMENU hsubmenu_rules,
+	_In_ HMENU hsubmenu_timers,
+	_In_ ULONG_PTR app_hash
+)
+{
+	_r_menu_additem (hmenu, 0, NULL);
+
+	// show rules
+	if (hsubmenu_rules)
+	{
+		_r_menu_addsubmenu (hmenu, -1, hsubmenu_rules, _r_locale_getstring (IDS_TRAY_RULES));
+
+		_r_menu_additem (hsubmenu_rules, IDM_DISABLENOTIFICATIONS, _r_locale_getstring (IDS_DISABLENOTIFICATIONS));
+		_r_menu_additem (hsubmenu_rules, IDM_DISABLEREMOVAL, _r_locale_getstring (IDS_DISABLEREMOVAL));
+
+		if (_app_isdisabledremoval (app_hash))
+			_r_menu_enableitem (hsubmenu_rules, IDM_DISABLEREMOVAL, MF_BYCOMMAND, FALSE);
+
+		_r_menu_additem (hsubmenu_rules, 0, NULL);
+
+		_app_generate_rulescontrol (hsubmenu_rules, app_hash, NULL);
+	}
+
+	// show timers
+	if (hsubmenu_timers)
+	{
+		_r_menu_addsubmenu (hmenu, -1, hsubmenu_timers, _r_locale_getstring (IDS_TIMER));
+
+		_r_menu_additem (hsubmenu_timers, IDM_DISABLETIMER, _r_locale_getstring (IDS_DISABLETIMER));
+		_r_menu_additem (hsubmenu_timers, 0, NULL);
+
+		_app_generate_timerscontrol (hsubmenu_timers, app_hash);
+	}
+
+	_r_menu_additem (hmenu, 0, NULL);
+}
+
 VOID _app_message_contextmenu (
 	_In_ HWND hwnd,
 	_In_ LPNMITEMACTIVATE lpnmlv
 )
 {
+	PR_STRING localized_string = NULL;
+	PR_STRING column_text = NULL;
+	HMENU hsubmenu_timers = NULL;
+	HMENU hsubmenu_rules = NULL;
 	HMENU hmenu;
-	HMENU hsubmenu_rules;
-	HMENU hsubmenu_timers;
-
-	PITEM_APP ptr_app;
 	PITEM_NETWORK ptr_network;
-
-	PR_STRING localized_string;
-	PR_STRING column_text;
-
+	PITEM_APP ptr_app = NULL;
 	ULONG_PTR hash_code;
-
+	ULONG_PTR app_hash;
 	INT listview_id;
-	INT lv_column_current;
 	INT command_id;
-
-	BOOLEAN is_checked;
-	BOOLEAN is_readonly;
+	BOOLEAN is_checked = FALSE;
+	BOOLEAN is_readonly = FALSE;
 
 	if (lpnmlv->iItem == -1)
 		return;
@@ -849,329 +713,241 @@ VOID _app_message_contextmenu (
 	if (!hmenu)
 		return;
 
-	ptr_app = NULL;
-
-	hsubmenu_rules = NULL;
-	hsubmenu_timers = NULL;
-
-	localized_string = NULL;
-	column_text = NULL;
-
 	hash_code = _app_listview_getitemcontext (hwnd, listview_id, lpnmlv->iItem);
-	lv_column_current = lpnmlv->iSubItem;
+	app_hash = _app_listview_getappcontext (hwnd, listview_id, lpnmlv->iItem);
 
-	if (listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP)
+	switch (listview_id)
 	{
-		hsubmenu_rules = CreatePopupMenu ();
-		hsubmenu_timers = CreatePopupMenu ();
-
-		ptr_app = _app_getappitem (hash_code);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_EDIT2), L"...\tEnter")
-		);
-
-		_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		// show rules
-		if (hsubmenu_rules)
+		case IDC_APPS_PROFILE:
+		case IDC_APPS_SERVICE:
+		case IDC_APPS_UWP:
 		{
-			_r_menu_addsubmenu (hmenu, -1, hsubmenu_rules, _r_locale_getstring (IDS_TRAY_RULES));
+			ptr_app = _app_getappitem (app_hash);
 
-			_r_menu_additem (
-				hsubmenu_rules,
-				IDM_DISABLENOTIFICATIONS,
-				_r_locale_getstring (IDS_DISABLENOTIFICATIONS)
-			);
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_EDIT2), L"...\tEnter"));
 
-			_r_menu_additem (hsubmenu_rules, 0, NULL);
+			_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
 
-			_app_generate_rulescontrol (hsubmenu_rules, hash_code, NULL);
-		}
+			hsubmenu_rules = CreatePopupMenu ();
+			hsubmenu_timers = CreatePopupMenu ();
 
-		// show timers
-		if (hsubmenu_timers)
-		{
-			_r_menu_addsubmenu (hmenu, -1, hsubmenu_timers, _r_locale_getstring (IDS_TIMER));
+			_app_generate_appmenu (hmenu, hsubmenu_rules, hsubmenu_timers, app_hash);
 
-			_r_menu_additem (hsubmenu_timers, IDM_DISABLETIMER, _r_locale_getstring (IDS_DISABLETIMER));
-			_r_menu_additem (hsubmenu_timers, 0, NULL);
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E"));
+			_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
 
-			_app_generate_timerscontrol (hsubmenu_timers, hash_code);
-		}
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E")
-		);
-
-		_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_DELETE), L"\tDel")
-		);
-
-		_r_menu_additem (hmenu, IDM_DELETE, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-		_r_menu_additem (hmenu, IDM_CHECK, _r_locale_getstring (IDS_CHECK));
-		_r_menu_additem (hmenu, IDM_UNCHECK, _r_locale_getstring (IDS_UNCHECK));
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A")
-		);
-
-		_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C")
-		);
-
-		_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
-
-		column_text = _r_listview_getcolumntext (hwnd, listview_id, lv_column_current);
-
-		if (column_text)
-		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\"")
-			);
-
-			_r_menu_additem (hmenu, IDM_COPY2, localized_string->buffer);
-
-			_r_obj_dereference (column_text);
-		}
-
-		if (ptr_app)
-		{
-			if (_app_getappinfo (ptr_app, INFO_IS_SILENT, &is_checked, sizeof (is_checked)))
-			{
-				if (is_checked)
-					_r_menu_checkitem (hmenu, IDM_DISABLENOTIFICATIONS, 0, MF_BYCOMMAND, is_checked);
-			}
-		}
-
-		if (listview_id != IDC_APPS_PROFILE)
-			_r_menu_enableitem (hmenu, IDM_DELETE, MF_BYCOMMAND, FALSE);
-	}
-	else if (listview_id >= IDC_RULES_BLOCKLIST && listview_id <= IDC_RULES_CUSTOM)
-	{
-		if (listview_id == IDC_RULES_CUSTOM)
-		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (2, _r_locale_getstring (IDS_ADD), L"...")
-			);
-
-			_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
-		}
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_EDIT2), L"...\tEnter")
-		);
-
-		_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
-
-		if (listview_id == IDC_RULES_CUSTOM)
-		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (2, _r_locale_getstring (IDS_DELETE), L"\tDel")
-			);
-
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_DELETE), L"\tDel"));
 			_r_menu_additem (hmenu, IDM_DELETE, localized_string->buffer);
 
-			if (_app_getruleinfobyid (hash_code, INFO_IS_READONLY, &is_readonly, sizeof (is_readonly)))
+			_r_menu_additem (hmenu, 0, NULL);
+			_r_menu_additem (hmenu, IDM_CHECK, _r_locale_getstring (IDS_CHECK));
+			_r_menu_additem (hmenu, IDM_UNCHECK, _r_locale_getstring (IDS_UNCHECK));
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A"));
+			_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
+
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C"));
+			_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
+
+			column_text = _r_listview_getcolumntext (hwnd, listview_id, lpnmlv->iSubItem);
+
+			if (column_text)
 			{
-				if (is_readonly)
-					_r_menu_enableitem (hmenu, IDM_DELETE, MF_BYCOMMAND, FALSE);
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\""));
+				_r_menu_additem (hmenu, IDM_COPY_VALUE, localized_string->buffer);
+
+				_r_obj_dereference (column_text);
 			}
-		}
 
-		_r_menu_additem (hmenu, 0, NULL);
-		_r_menu_additem (hmenu, IDM_CHECK, _r_locale_getstring (IDS_CHECK));
-		_r_menu_additem (hmenu, IDM_UNCHECK, _r_locale_getstring (IDS_UNCHECK));
-		_r_menu_additem (hmenu, 0, NULL);
+			if (ptr_app)
+			{
+				if (_app_getappinfo (ptr_app, INFO_IS_SILENT, &is_checked, sizeof (is_checked)))
+				{
+					if (is_checked)
+						_r_menu_checkitem (hmenu, IDM_DISABLENOTIFICATIONS, 0, MF_BYCOMMAND, is_checked);
+				}
 
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A")
-		);
+				if (_app_getappinfo (ptr_app, INFO_IS_UNDELETABLE, &is_checked, sizeof (is_checked)))
+				{
+					if (is_checked)
+						_r_menu_checkitem (hmenu, IDM_DISABLEREMOVAL, 0, MF_BYCOMMAND, is_checked);
+				}
+			}
 
-		_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C")
-		);
-
-		_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
-
-		column_text = _r_listview_getcolumntext (hwnd, listview_id, lv_column_current);
-
-		if (column_text)
-		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\"")
-			);
-
-			_r_menu_additem (hmenu, IDM_COPY2, localized_string->buffer);
-
-			_r_obj_dereference (column_text);
-		}
-	}
-	else if (listview_id == IDC_NETWORK)
-	{
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SHOWINLIST), L"\tEnter")
-		);
-
-		_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"...")
-		);
-
-		_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E")
-		);
-
-		_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
-
-		_r_menu_additem (hmenu, IDM_DELETE, _r_locale_getstring (IDS_NETWORK_CLOSE));
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A")
-		);
-
-		_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C")
-		);
-
-		_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
-
-		column_text = _r_listview_getcolumntext (hwnd, listview_id, lv_column_current);
-
-		if (column_text)
-		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\"")
-			);
-
-			_r_menu_additem (hmenu, IDM_COPY2, localized_string->buffer);
-
-			_r_obj_dereference (column_text);
-		}
-
-		ptr_network = _app_network_getitem (hash_code);
-
-		if (ptr_network)
-		{
-			if (ptr_network->af != AF_INET || ptr_network->state != MIB_TCP_STATE_ESTAB)
+			if (listview_id != IDC_APPS_PROFILE)
 				_r_menu_enableitem (hmenu, IDM_DELETE, MF_BYCOMMAND, FALSE);
 
-			_r_obj_dereference (ptr_network);
+			break;
 		}
-	}
-	else if (listview_id == IDC_LOG)
-	{
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SHOWINLIST), L"\tEnter")
-		);
 
-		_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"...")
-		);
-
-		_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E")
-		);
-
-		_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGCLEAR), L"\tCtrl+X")
-		);
-
-		_r_menu_additem (hmenu, IDM_TRAY_LOGCLEAR, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A")
-		);
-
-		_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
-
-		_r_menu_additem (hmenu, 0, NULL);
-
-		_r_obj_movereference (
-			&localized_string,
-			_r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C")
-		);
-
-		_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
-
-		column_text = _r_listview_getcolumntext (hwnd, listview_id, lv_column_current);
-
-		if (column_text)
+		case IDC_RULES_BLOCKLIST:
+		case IDC_RULES_SYSTEM:
+		case IDC_RULES_CUSTOM:
 		{
-			_r_obj_movereference (
-				&localized_string,
-				_r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\"")
-			);
+			if (listview_id == IDC_RULES_CUSTOM)
+			{
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_ADD), L"..."));
+				_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
+			}
 
-			_r_menu_additem (hmenu, IDM_COPY2, localized_string->buffer);
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_EDIT2), L"...\tEnter"));
+			_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
 
-			_r_obj_dereference (column_text);
+			if (listview_id == IDC_RULES_CUSTOM)
+			{
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_DELETE), L"\tDel"));
+				_r_menu_additem (hmenu, IDM_DELETE, localized_string->buffer);
+
+				if (_app_getruleinfobyid (hash_code, INFO_IS_READONLY, &is_readonly, sizeof (is_readonly)))
+				{
+					if (is_readonly)
+						_r_menu_enableitem (hmenu, IDM_DELETE, MF_BYCOMMAND, FALSE);
+				}
+			}
+
+			_r_menu_additem (hmenu, 0, NULL);
+			_r_menu_additem (hmenu, IDM_CHECK, _r_locale_getstring (IDS_CHECK));
+			_r_menu_additem (hmenu, IDM_UNCHECK, _r_locale_getstring (IDS_UNCHECK));
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A"));
+
+			_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C"));
+
+			_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
+
+			column_text = _r_listview_getcolumntext (hwnd, listview_id, lpnmlv->iSubItem);
+
+			if (column_text)
+			{
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\""));
+
+				_r_menu_additem (hmenu, IDM_COPY_VALUE, localized_string->buffer);
+
+				_r_obj_dereference (column_text);
+			}
+
+			break;
+		}
+
+		case IDC_NETWORK:
+		{
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SHOWINLIST), L"\tEnter"));
+			_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"..."));
+			_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
+
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E"));
+			_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
+
+			_r_menu_additem (hmenu, IDM_DELETE, _r_locale_getstring (IDS_NETWORK_CLOSE));
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A"));
+			_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
+
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C"));
+			_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
+
+			column_text = _r_listview_getcolumntext (hwnd, listview_id, lpnmlv->iSubItem);
+
+			if (column_text)
+			{
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\""));
+
+				_r_menu_additem (hmenu, IDM_COPY_VALUE, localized_string->buffer);
+
+				_r_obj_dereference (column_text);
+			}
+
+			ptr_network = _app_network_getitem (hash_code);
+
+			if (ptr_network)
+			{
+				if (ptr_network->af != AF_INET || ptr_network->state != MIB_TCP_STATE_ESTAB)
+					_r_menu_enableitem (hmenu, IDM_DELETE, MF_BYCOMMAND, FALSE);
+
+				_r_obj_dereference (ptr_network);
+			}
+
+			break;
+		}
+
+		case IDC_LOG:
+		{
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SHOWINLIST), L"\tEnter"));
+			_r_menu_additem_ex (hmenu, IDM_PROPERTIES, localized_string->buffer, MF_DEFAULT);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"..."));
+			_r_menu_additem (hmenu, IDM_OPENRULESEDITOR, localized_string->buffer);
+
+			hsubmenu_rules = CreatePopupMenu ();
+			hsubmenu_timers = CreatePopupMenu ();
+
+			_app_generate_appmenu (hmenu, hsubmenu_rules, hsubmenu_timers, app_hash);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_EXPLORE), L"\tCtrl+E"));
+			_r_menu_additem (hmenu, IDM_EXPLORE, localized_string->buffer);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGCLEAR), L"\tCtrl+X"));
+			_r_menu_additem (hmenu, IDM_TRAY_LOGCLEAR, localized_string->buffer);
+
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SELECT_ALL), L"\tCtrl+A"));
+			_r_menu_additem (hmenu, IDM_SELECT_ALL, localized_string->buffer);
+
+			_r_menu_additem (hmenu, 0, NULL);
+
+			_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_COPY), L"\tCtrl+C"));
+			_r_menu_additem (hmenu, IDM_COPY, localized_string->buffer);
+
+			column_text = _r_listview_getcolumntext (hwnd, listview_id, lpnmlv->iSubItem);
+
+			if (column_text)
+			{
+				_r_obj_movereference (&localized_string, _r_obj_concatstrings (4, _r_locale_getstring (IDS_COPY), L" \"", column_text->buffer, L"\""));
+				_r_menu_additem (hmenu, IDM_COPY_VALUE, localized_string->buffer);
+
+				_r_obj_dereference (column_text);
+			}
+
+			ptr_app = _app_getappitem (app_hash);
+
+			if (ptr_app)
+			{
+				if (_app_getappinfo (ptr_app, INFO_IS_SILENT, &is_checked, sizeof (is_checked)))
+				{
+					if (is_checked)
+						_r_menu_checkitem (hmenu, IDM_DISABLENOTIFICATIONS, 0, MF_BYCOMMAND, is_checked);
+				}
+
+				if (_app_getappinfo (ptr_app, INFO_IS_UNDELETABLE, &is_checked, sizeof (is_checked)))
+				{
+					if (is_checked)
+						_r_menu_checkitem (hmenu, IDM_DISABLEREMOVAL, 0, MF_BYCOMMAND, is_checked);
+				}
+			}
+
+			break;
 		}
 	}
 
 	command_id = _r_menu_popup (hmenu, hwnd, NULL, FALSE);
 
 	if (command_id)
-		PostMessage (hwnd, WM_COMMAND, MAKEWPARAM (command_id, 0), (LPARAM)lv_column_current);
+		_r_wnd_sendmessage (hwnd, 0, WM_COMMAND, MAKEWPARAM (command_id, 0), (LPARAM)lpnmlv->iSubItem);
 
 	if (hsubmenu_rules)
 		DestroyMenu (hsubmenu_rules);
@@ -1238,11 +1014,10 @@ VOID _app_message_traycontextmenu (
 )
 {
 	ENUM_INSTALL_TYPE install_type;
-
 	HMENU hmenu;
 	HMENU hsubmenu;
 
-	hmenu = LoadMenu (NULL, MAKEINTRESOURCE (IDM_TRAY));
+	hmenu = LoadMenuW (NULL, MAKEINTRESOURCEW (IDM_TRAY));
 
 	if (!hmenu)
 		return;
@@ -1252,6 +1027,7 @@ VOID _app_message_traycontextmenu (
 	if (!hsubmenu)
 	{
 		DestroyMenu (hmenu);
+
 		return;
 	}
 
@@ -1439,10 +1215,7 @@ VOID _app_message_dpichanged (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"...")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_OPENRULESEDITOR), L"..."));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -1484,10 +1257,7 @@ VOID _app_message_dpichanged (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGSHOW), L" (Ctrl+I)")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGSHOW), L" (Ctrl+I)"));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -1499,10 +1269,7 @@ VOID _app_message_dpichanged (
 		I_IMAGENONE
 	);
 
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGCLEAR), L" (Ctrl+X)")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_LOGCLEAR), L" (Ctrl+X)"));
 
 	_r_toolbar_setbutton (
 		config.hrebar,
@@ -1527,7 +1294,7 @@ VOID _app_message_dpichanged (
 	_app_listview_loadfont (dpi_value, TRUE);
 	_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
 
-	SendMessage (hwnd, WM_SIZE, 0, 0);
+	_r_wnd_sendmessage (hwnd, 0, WM_SIZE, 0, 0);
 
 	_r_obj_dereference (localized_string);
 }
@@ -1537,34 +1304,23 @@ LONG_PTR _app_message_custdraw (
 	_In_ LPNMLVCUSTOMDRAW lpnmlv
 )
 {
-	TBBUTTONINFO tbi = {0};
+	TBBUTTONINFOW tbi = {0};
 	WCHAR text[128] = {0};
-	HIMAGELIST himglist;
 	PITEM_NETWORK ptr_network;
 	PITEM_LOG ptr_log;
 	PITEM_COLOR ptr_clr;
-	PR_STRING real_path;
-	ULONG_PTR app_hash;
+	PR_STRING real_path = NULL;
+	ULONG_PTR app_hash = 0;
 	ULONG_PTR index;
-	COLORREF new_clr;
-	ULONG padding;
-	ULONG button_size;
-	INT icon_size_x;
-	INT icon_size_y;
+	COLORREF new_clr = 0;
 	INT ctrl_id;
-	LRESULT result;
-	BOOLEAN is_systemapp;
-	BOOLEAN is_validconnection;
+	BOOLEAN is_systemapp = FALSE;
+	BOOLEAN is_validconnection = FALSE;
 
 	switch (lpnmlv->nmcd.dwDrawStage)
 	{
 		case CDDS_PREPAINT:
 		{
-			ctrl_id = (INT)(INT_PTR)lpnmlv->nmcd.hdr.idFrom;
-
-			if (ctrl_id == IDC_TOOLBAR)
-				return CDRF_NOTIFYITEMDRAW | CDRF_NOTIFYPOSTPAINT;
-
 			return CDRF_NOTIFYITEMDRAW;
 		}
 
@@ -1572,170 +1328,85 @@ LONG_PTR _app_message_custdraw (
 		{
 			ctrl_id = (INT)(INT_PTR)lpnmlv->nmcd.hdr.idFrom;
 
-			if (ctrl_id == IDC_TOOLBAR)
+			if (lpnmlv->dwItemType != LVCDI_ITEM)
+				return CDRF_DODEFAULT;
+
+			if (!lpnmlv->nmcd.lItemlParam)
+				return CDRF_DODEFAULT;
+
+			if (!_r_config_getboolean (L"IsEnableHighlighting", TRUE))
+				return CDRF_DODEFAULT;
+
+			if ((ctrl_id >= IDC_APPS_PROFILE && ctrl_id <= IDC_APPS_UWP) || ctrl_id == IDC_RULE_APPS_ID || ctrl_id == IDC_NETWORK || ctrl_id == IDC_LOG)
 			{
-				tbi.cbSize = sizeof (tbi);
-				tbi.dwMask = TBIF_STYLE | TBIF_STATE | TBIF_IMAGE;
+				index = _app_listview_getcontextcode (lpnmlv->nmcd.lItemlParam);
 
-				result = SendMessage (
-					lpnmlv->nmcd.hdr.hwndFrom,
-					TB_GETBUTTONINFO,
-					(WPARAM)lpnmlv->nmcd.dwItemSpec,
-					(LPARAM)&tbi
-				);
-
-				if (result == -1)
-					return CDRF_DODEFAULT;
-
-				if (tbi.fsState & TBSTATE_ENABLED)
-					return CDRF_DODEFAULT;
-
-				himglist = (HIMAGELIST)SendMessage (lpnmlv->nmcd.hdr.hwndFrom, TB_GETIMAGELIST, 0, 0);
-
-				if (!himglist)
-					return CDRF_DODEFAULT;
-
-				if (!ImageList_GetIconSize (himglist, &icon_size_x, &icon_size_y))
-					return CDRF_DODEFAULT;
-
-				_r_dc_fixwindowfont (lpnmlv->nmcd.hdc, lpnmlv->nmcd.hdr.hwndFrom); // fix
-
-				SetBkMode (lpnmlv->nmcd.hdc, TRANSPARENT);
-				SetTextColor (lpnmlv->nmcd.hdc, GetSysColor (COLOR_GRAYTEXT));
-
-				// draw image
-				if (tbi.iImage != I_IMAGENONE)
+				if (ctrl_id == IDC_NETWORK)
 				{
-					padding = (ULONG)SendMessage (lpnmlv->nmcd.hdr.hwndFrom, TB_GETPADDING, 0, 0);
-					button_size = (ULONG)SendMessage (lpnmlv->nmcd.hdr.hwndFrom, TB_GETBUTTONSIZE, 0, 0);
+					ptr_network = _app_network_getitem (index);
 
-					_r_dc_drawimagelisticon (
-						lpnmlv->nmcd.hdc,
-						himglist,
-						tbi.iImage,
-						lpnmlv->nmcd.rc.left + (LOWORD (padding) / 2),
-						(HIWORD (button_size) / 2) - (icon_size_y / 2),
-						ILS_SATURATE, // grayscale
-						ILD_NORMAL | ILD_ASYNC
-					);
-				}
-
-				// draw text
-				if ((tbi.fsStyle & BTNS_SHOWTEXT) == BTNS_SHOWTEXT)
-				{
-					SendMessage (
-						lpnmlv->nmcd.hdr.hwndFrom,
-						TB_GETBUTTONTEXT,
-						(WPARAM)lpnmlv->nmcd.dwItemSpec,
-						(LPARAM)text
-					);
-
-					if (tbi.iImage != I_IMAGENONE)
-						lpnmlv->nmcd.rc.left += icon_size_x;
-
-					DrawTextEx (
-						lpnmlv->nmcd.hdc,
-						text,
-						(INT)_r_str_getlength (text),
-						&lpnmlv->nmcd.rc,
-						DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_HIDEPREFIX,
-						NULL
-					);
-				}
-
-				return CDRF_SKIPDEFAULT;
-			}
-			else
-			{
-				if (lpnmlv->dwItemType != LVCDI_ITEM)
-					return CDRF_DODEFAULT;
-
-				if (!lpnmlv->nmcd.lItemlParam)
-					return CDRF_DODEFAULT;
-
-				if (!_r_config_getboolean (L"IsEnableHighlighting", TRUE))
-					return CDRF_DODEFAULT;
-
-				new_clr = 0;
-
-				is_systemapp = FALSE;
-				is_validconnection = FALSE;
-
-				if ((ctrl_id >= IDC_APPS_PROFILE && ctrl_id <= IDC_APPS_UWP) ||
-					ctrl_id == IDC_RULE_APPS_ID ||
-					ctrl_id == IDC_NETWORK ||
-					ctrl_id == IDC_LOG)
-				{
-					app_hash = 0;
-					index = _app_listview_getcontextcode (lpnmlv->nmcd.lItemlParam);
-
-					if (ctrl_id == IDC_NETWORK)
+					if (ptr_network)
 					{
-						ptr_network = _app_network_getitem (index);
+						app_hash = ptr_network->app_hash;
+						is_systemapp = _app_isappfromsystem (ptr_network->path, app_hash);
+						is_validconnection = ptr_network->is_connection;
 
-						if (ptr_network)
-						{
-							app_hash = ptr_network->app_hash;
-							is_systemapp = _app_isappfromsystem (ptr_network->path, app_hash);
-							is_validconnection = ptr_network->is_connection;
-
-							_r_obj_dereference (ptr_network);
-						}
+						_r_obj_dereference (ptr_network);
 					}
-					else if (ctrl_id == IDC_LOG)
-					{
-						ptr_log = _app_getlogitem (index);
-
-						if (ptr_log)
-						{
-							app_hash = _app_getlogapp (index);
-							is_systemapp = _app_isappfromsystem (ptr_log->path, app_hash);
-
-							_r_obj_dereference (ptr_log);
-						}
-					}
-					else
-					{
-						app_hash = index;
-						is_validconnection = _app_network_isapphaveconnection (app_hash);
-
-						if (_app_getappinfobyhash (app_hash, INFO_PATH, &real_path, sizeof (real_path)))
-						{
-							is_systemapp = _app_isappfromsystem (real_path, app_hash);
-
-							_r_obj_dereference (real_path);
-						}
-					}
-
-					if (app_hash)
-						new_clr = _app_getappcolor (ctrl_id, app_hash, is_systemapp, is_validconnection);
 				}
-				else if ((ctrl_id >= IDC_RULES_BLOCKLIST && ctrl_id <= IDC_RULES_CUSTOM) || ctrl_id == IDC_APP_RULES_ID)
+				else if (ctrl_id == IDC_LOG)
 				{
-					index = _app_listview_getcontextcode (lpnmlv->nmcd.lItemlParam);
+					ptr_log = _app_getlogitem (index);
 
-					new_clr = _app_getrulecolor (ctrl_id, index);
-				}
-				else if (ctrl_id == IDC_COLORS)
-				{
-					ptr_clr = (PITEM_COLOR)lpnmlv->nmcd.lItemlParam;
+					if (ptr_log)
+					{
+						app_hash = _app_getlogapp (index);
+						is_systemapp = _app_isappfromsystem (ptr_log->path, app_hash);
 
-					new_clr = ptr_clr->new_clr ? ptr_clr->new_clr : ptr_clr->default_clr;
+						_r_obj_dereference (ptr_log);
+					}
 				}
 				else
 				{
-					break;
+					app_hash = index;
+					is_validconnection = _app_network_isapphaveconnection (app_hash);
+
+					if (_app_getappinfobyhash (app_hash, INFO_PATH, &real_path, sizeof (real_path)))
+					{
+						is_systemapp = _app_isappfromsystem (real_path, app_hash);
+
+						_r_obj_dereference (real_path);
+					}
 				}
 
-				if (new_clr)
-				{
-					lpnmlv->clrText = _r_dc_getcolorbrightness (new_clr);
-					lpnmlv->clrTextBk = new_clr;
+				if (app_hash)
+					new_clr = _app_getappcolor (ctrl_id, app_hash, is_systemapp, is_validconnection);
+			}
+			else if ((ctrl_id >= IDC_RULES_BLOCKLIST && ctrl_id <= IDC_RULES_CUSTOM) || ctrl_id == IDC_APP_RULES_ID)
+			{
+				index = _app_listview_getcontextcode (lpnmlv->nmcd.lItemlParam);
 
-					_r_dc_fillrect (lpnmlv->nmcd.hdc, &lpnmlv->nmcd.rc, new_clr);
+				new_clr = _app_getrulecolor (ctrl_id, index);
+			}
+			else if (ctrl_id == IDC_COLORS)
+			{
+				ptr_clr = (PITEM_COLOR)lpnmlv->nmcd.lItemlParam;
 
-					return CDRF_NEWFONT;
-				}
+				new_clr = ptr_clr->new_clr ? ptr_clr->new_clr : ptr_clr->default_clr;
+			}
+			else
+			{
+				break;
+			}
+
+			if (new_clr)
+			{
+				lpnmlv->clrText = _r_dc_getcolorbrightness (new_clr);
+				lpnmlv->clrTextBk = new_clr;
+
+				_r_dc_fillrect (lpnmlv->nmcd.hdc, &lpnmlv->nmcd.rc, new_clr);
+
+				return CDRF_NEWFONT;
 			}
 
 			break;
@@ -1746,13 +1417,12 @@ LONG_PTR _app_message_custdraw (
 }
 
 VOID _app_displayinfoapp_callback (
-	_In_ INT listview_id,
 	_In_ PITEM_APP ptr_app,
 	_Inout_ LPNMLVDISPINFOW lpnmlv
 )
 {
 	PR_STRING string;
-	LONG icon_id;
+	LONG icon_id = 0;
 
 	// set text
 	if (lpnmlv->item.mask & LVIF_TEXT)
@@ -1766,6 +1436,7 @@ VOID _app_displayinfoapp_callback (
 				if (string)
 				{
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 					_r_obj_dereference (string);
 				}
 
@@ -1774,11 +1445,12 @@ VOID _app_displayinfoapp_callback (
 
 			case 1:
 			{
-				string = _r_format_unixtime_ex (ptr_app->timestamp, FDTF_SHORTDATE | FDTF_SHORTTIME);
+				string = _r_format_unixtime (ptr_app->timestamp, FDTF_SHORTDATE | FDTF_SHORTTIME);
 
 				if (string)
 				{
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 					_r_obj_dereference (string);
 				}
 
@@ -1790,7 +1462,7 @@ VOID _app_displayinfoapp_callback (
 	// set image
 	if (lpnmlv->item.mask & LVIF_IMAGE)
 	{
-		if (_app_getappinfoparam2 (ptr_app->app_hash, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
+		if (_app_getappinfoparam2 (ptr_app->app_hash, (INT)lpnmlv->hdr.idFrom, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
 			lpnmlv->item.iImage = icon_id;
 	}
 
@@ -1803,7 +1475,7 @@ VOID _app_displayinfoapp_callback (
 		}
 		else
 		{
-			if (listview_id == IDC_RULE_APPS_ID)
+			if (lpnmlv->hdr.idFrom == IDC_RULE_APPS_ID)
 			{
 				if (ptr_app->type == DATA_APP_UWP)
 				{
@@ -1869,12 +1541,7 @@ VOID _app_displayinforule_callback (
 				{
 					if (ptr_rule->is_readonly && ptr_rule->type == DATA_RULE_USER)
 					{
-						_r_str_printf (
-							lpnmlv->item.pszText,
-							lpnmlv->item.cchTextMax,
-							L"%s" SZ_RULE_INTERNAL_MENU,
-							ptr_rule->name->buffer
-						);
+						_r_str_printf (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, L"%s" SZ_RULE_INTERNAL_MENU, ptr_rule->name->buffer);
 					}
 					else
 					{
@@ -1910,6 +1577,7 @@ VOID _app_displayinforule_callback (
 				if (string)
 				{
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 					_r_obj_dereference (string);
 				}
 
@@ -1920,9 +1588,7 @@ VOID _app_displayinforule_callback (
 
 	// set image
 	if (lpnmlv->item.mask & LVIF_IMAGE)
-	{
 		lpnmlv->item.iImage = (ptr_rule->action == FWP_ACTION_BLOCK) ? 1 : 0;
-	}
 
 	// set group id
 	if (lpnmlv->item.mask & LVIF_GROUPID)
@@ -1941,7 +1607,7 @@ VOID _app_displayinforule_callback (
 			{
 				if (ptr_rule->is_enabled)
 				{
-					if (ptr_rule->is_forservices || !_r_obj_ishashtableempty (ptr_rule->apps))
+					if (ptr_rule->is_forservices || !_r_obj_isempty (ptr_rule->apps))
 					{
 						lpnmlv->item.iGroupId = 1;
 					}
@@ -1967,7 +1633,7 @@ VOID _app_displayinfonetwork_callback (
 	PITEM_APP ptr_app;
 	PR_STRING string;
 	LPCWSTR name;
-	LONG icon_id;
+	LONG icon_id = 0;
 
 	// set text
 	if (lpnmlv->item.mask & LVIF_TEXT)
@@ -1985,6 +1651,7 @@ VOID _app_displayinfonetwork_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 
@@ -1992,11 +1659,7 @@ VOID _app_displayinfonetwork_callback (
 				}
 				else if (ptr_network->path)
 				{
-					_r_str_copy (
-						lpnmlv->item.pszText,
-						lpnmlv->item.cchTextMax,
-						_r_path_getbasename (ptr_network->path->buffer)
-					);
+					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, _r_path_getbasename (&ptr_network->path->sr));
 				}
 
 				break;
@@ -2004,11 +1667,7 @@ VOID _app_displayinfonetwork_callback (
 
 			case 1:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_network->local_addr_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_network->local_addr_str, NULL, NULL);
 
 				if (string)
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
@@ -2018,11 +1677,7 @@ VOID _app_displayinfonetwork_callback (
 
 			case 2:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_network->local_host_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_network->local_host_str, NULL, NULL);
 
 				if (string)
 				{
@@ -2045,6 +1700,7 @@ VOID _app_displayinfonetwork_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 				}
@@ -2054,11 +1710,7 @@ VOID _app_displayinfonetwork_callback (
 
 			case 4:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_network->remote_addr_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_network->remote_addr_str, NULL, NULL);
 
 				if (string)
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
@@ -2068,11 +1720,7 @@ VOID _app_displayinfonetwork_callback (
 
 			case 5:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_network->remote_host_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_network->remote_host_str, NULL, NULL);
 
 				if (string)
 				{
@@ -2095,6 +1743,7 @@ VOID _app_displayinfonetwork_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 				}
@@ -2131,7 +1780,7 @@ VOID _app_displayinfonetwork_callback (
 	// set image
 	if (lpnmlv->item.mask & LVIF_IMAGE)
 	{
-		if (_app_getappinfoparam2 (ptr_network->app_hash, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
+		if (_app_getappinfoparam2 (ptr_network->app_hash, (INT)lpnmlv->hdr.idFrom, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
 			lpnmlv->item.iImage = icon_id;
 	}
 
@@ -2167,7 +1816,7 @@ VOID _app_displayinfolog_callback (
 )
 {
 	PR_STRING string;
-	LONG icon_id;
+	LONG icon_id = 0;
 
 	// set text
 	if (lpnmlv->item.mask & LVIF_TEXT)
@@ -2183,16 +1832,13 @@ VOID _app_displayinfolog_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 				}
 				else if (ptr_log->path)
 				{
-					_r_str_copy (
-						lpnmlv->item.pszText,
-						lpnmlv->item.cchTextMax,
-						_r_path_getbasename (ptr_log->path->buffer)
-					);
+					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, _r_path_getbasename (&ptr_log->path->sr));
 				}
 				else
 				{
@@ -2204,11 +1850,12 @@ VOID _app_displayinfolog_callback (
 
 			case 1:
 			{
-				string = _r_format_unixtime_ex (ptr_log->timestamp, FDTF_SHORTDATE | FDTF_LONGTIME);
+				string = _r_format_unixtime (ptr_log->timestamp, FDTF_SHORTDATE | FDTF_LONGTIME);
 
 				if (string)
 				{
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 					_r_obj_dereference (string);
 				}
 
@@ -2217,11 +1864,7 @@ VOID _app_displayinfolog_callback (
 
 			case 2:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_log->local_addr_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_log->local_addr_str, NULL, NULL);
 
 				if (string)
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
@@ -2231,11 +1874,7 @@ VOID _app_displayinfolog_callback (
 
 			case 3:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_log->local_host_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_log->local_host_str, NULL, NULL);
 
 				if (string)
 				{
@@ -2258,6 +1897,7 @@ VOID _app_displayinfolog_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 				}
@@ -2267,11 +1907,7 @@ VOID _app_displayinfolog_callback (
 
 			case 5:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_log->remote_addr_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_log->remote_addr_str, NULL, NULL);
 
 				if (string)
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
@@ -2281,11 +1917,7 @@ VOID _app_displayinfolog_callback (
 
 			case 6:
 			{
-				string = InterlockedCompareExchangePointer (
-					&ptr_log->remote_host_str,
-					NULL,
-					NULL
-				);
+				string = _InterlockedCompareExchangePointer (&ptr_log->remote_host_str, NULL, NULL);
 
 				if (string)
 				{
@@ -2308,6 +1940,7 @@ VOID _app_displayinfolog_callback (
 					if (string)
 					{
 						_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 						_r_obj_dereference (string);
 					}
 				}
@@ -2336,6 +1969,7 @@ VOID _app_displayinfolog_callback (
 				if (string)
 				{
 					_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 					_r_obj_dereference (string);
 				}
 
@@ -2351,6 +1985,7 @@ VOID _app_displayinfolog_callback (
 				);
 
 				_r_str_copy (lpnmlv->item.pszText, lpnmlv->item.cchTextMax, string->buffer);
+
 				_r_obj_dereference (string);
 
 				break;
@@ -2361,7 +1996,7 @@ VOID _app_displayinfolog_callback (
 	// set image
 	if (lpnmlv->item.mask & LVIF_IMAGE)
 	{
-		if (_app_getappinfoparam2 (ptr_log->app_hash, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
+		if (_app_getappinfoparam2 (ptr_log->app_hash, (INT)lpnmlv->hdr.idFrom, INFO_ICON_ID, &icon_id, sizeof (icon_id)))
 			lpnmlv->item.iImage = icon_id;
 	}
 
@@ -2399,7 +2034,7 @@ BOOLEAN _app_message_displayinfo (
 
 		if (ptr_app)
 		{
-			_app_displayinfoapp_callback (listview_id, ptr_app, lpnmlv);
+			_app_displayinfoapp_callback (ptr_app, lpnmlv);
 			_r_obj_dereference (ptr_app);
 
 			return TRUE;
@@ -2461,28 +2096,25 @@ VOID _app_command_idtorules (
 	PITEM_RULE ptr_rule;
 	PR_LIST rules;
 	ULONG_PTR app_hash;
-	SIZE_T rule_idx;
+	ULONG_PTR rule_idx;
 	INT listview_id;
-	INT item_id;
-	BOOL is_remove;
+	INT item_id = -1;
+	BOOL is_remove = -1;
 
 	listview_id = _app_listview_getcurrent (hwnd);
 
 	if (!_r_listview_getselectedcount (hwnd, listview_id))
 		return;
 
-	rule_idx = (SIZE_T)ctrl_id - IDX_RULES_SPECIAL;
+	rule_idx = (ULONG_PTR)ctrl_id - IDX_RULES_SPECIAL;
 	ptr_rule = _app_getrulebyid (rule_idx);
 
 	if (!ptr_rule)
 		return;
 
-	item_id = -1;
-	is_remove = -1;
-
 	while ((item_id = _r_listview_getnextselected (hwnd, listview_id, item_id)) != -1)
 	{
-		app_hash = _app_listview_getitemcontext (hwnd, listview_id, item_id);
+		app_hash = _app_listview_getappcontext (hwnd, listview_id, item_id);
 
 		if (ptr_rule->is_forservices && _app_issystemhash (app_hash))
 			continue;
@@ -2523,7 +2155,7 @@ VOID _app_command_idtorules (
 
 	_r_obj_dereference (ptr_rule);
 
-	_app_profile_save ();
+	_app_profile_save (hwnd);
 }
 
 VOID _app_command_idtotimers (
@@ -2535,19 +2167,18 @@ VOID _app_command_idtotimers (
 	PR_LIST rules;
 	PITEM_APP ptr_app;
 	ULONG_PTR app_hash;
-	SIZE_T timer_idx;
+	ULONG_PTR timer_idx;
 	LONG64 seconds;
 	INT listview_id;
-	INT item_id;
+	INT item_id = -1;
 
 	listview_id = _app_listview_getcurrent (hwnd);
 
 	if (!listview_id || !_r_listview_getselectedcount (hwnd, listview_id))
 		return;
 
-	timer_idx = (SIZE_T)ctrl_id - IDX_TIMER;
+	timer_idx = (ULONG_PTR)ctrl_id - IDX_TIMER;
 	seconds = timer_array[timer_idx];
-	item_id = -1;
 
 	if (_wfp_isfiltersinstalled ())
 	{
@@ -2559,7 +2190,7 @@ VOID _app_command_idtotimers (
 
 			while ((item_id = _r_listview_getnextselected (hwnd, listview_id, item_id)) != -1)
 			{
-				app_hash = _app_listview_getitemcontext (hwnd, listview_id, item_id);
+				app_hash = _app_listview_getappcontext (hwnd, listview_id, item_id);
 				ptr_app = _app_getappitem (app_hash);
 
 				if (ptr_app)
@@ -2578,17 +2209,16 @@ VOID _app_command_idtotimers (
 
 	_app_listview_updateby_id (hwnd, listview_id, PR_UPDATE_FORCE);
 
-	_app_profile_save ();
+	_app_profile_save (hwnd);
 }
 
 VOID _app_command_logshow (
 	_In_ HWND hwnd
 )
 {
-	R_ERROR_INFO error_info;
-	PR_STRING log_path;
 	PR_STRING viewer_path;
-	PR_STRING process_path;
+	PR_STRING log_path;
+	PR_STRING cmdline;
 	HANDLE current_handle;
 	INT item_count;
 	NTSTATUS status;
@@ -2612,44 +2242,33 @@ VOID _app_command_logshow (
 			return;
 
 		if (!_r_fs_exists (log_path->buffer))
-		{
-			_r_obj_dereference (log_path);
-
 			return;
-		}
 
-		current_handle = InterlockedCompareExchangePointer (&config.hlogfile, NULL, NULL);
+		current_handle = _InterlockedCompareExchangePointer (&config.hlogfile, NULL, NULL);
 
 		if (current_handle)
-			FlushFileBuffers (current_handle);
+			_r_fs_flushfile (current_handle);
 
 		viewer_path = _app_getlogviewer ();
 
-		if (viewer_path)
-		{
-			process_path = _r_obj_concatstrings (
-				5,
-				L"\"",
-				viewer_path->buffer,
-				L"\" \"",
-				log_path->buffer,
-				L"\""
-			);
+		if (!viewer_path)
+			return;
 
-			status = _r_sys_createprocess (viewer_path->buffer, process_path->buffer, NULL);
+		cmdline = _r_obj_concatstrings (
+			4,
+			L"\"",
+			viewer_path->buffer,
+			L"\" ",
+			log_path->buffer
+		);
 
-			if (status != STATUS_SUCCESS)
-			{
-				_r_error_initialize (&error_info, NULL, viewer_path->buffer);
+		status = _r_sys_createprocess (viewer_path->buffer, cmdline->buffer, NULL);
 
-				_r_show_errormessage (hwnd, NULL, status, &error_info);
-			}
+		if (!NT_SUCCESS (status))
+			_r_show_errormessage (hwnd, NULL, status, cmdline->buffer, ET_NATIVE);
 
-			_r_obj_dereference (process_path);
-			_r_obj_dereference (viewer_path);
-		}
-
-		_r_obj_dereference (log_path);
+		_r_obj_dereference (viewer_path);
+		_r_obj_dereference (cmdline);
 	}
 }
 
@@ -2658,23 +2277,23 @@ VOID _app_command_logclear (
 )
 {
 	PR_STRING log_path;
+	LONG64 file_size;
 	HANDLE current_handle;
 	BOOLEAN is_valid;
 
 	log_path = _r_config_getstringexpand (L"LogPath", LOG_PATH_DEFAULT);
 
-	current_handle = InterlockedCompareExchangePointer (
-		&config.hlogfile,
-		NULL,
-		NULL
-	);
+	current_handle = _InterlockedCompareExchangePointer (&config.hlogfile, NULL, NULL);
 
-	is_valid = (current_handle && _r_fs_getsize (current_handle) > 2) || (log_path && _r_fs_exists (log_path->buffer));
+	if (current_handle)
+		_r_fs_getsize2 (current_handle, NULL, &file_size);
+
+	is_valid = (current_handle && file_size > 2) || (log_path && _r_fs_exists (log_path->buffer));
 
 	if (!is_valid)
 	{
 		_r_queuedlock_acquireshared (&lock_loglist);
-		is_valid = !_r_obj_ishashtableempty (log_table);
+		is_valid = !_r_obj_isempty (log_table);
 		_r_queuedlock_releaseshared (&lock_loglist);
 	}
 
@@ -2683,6 +2302,7 @@ VOID _app_command_logclear (
 		if (_r_show_confirmmessage (hwnd, NULL, _r_locale_getstring (IDS_QUESTION), L"ConfirmLogClear"))
 		{
 			_app_logclear (current_handle);
+
 			_app_logclear_ui (hwnd);
 		}
 	}
@@ -2697,40 +2317,35 @@ VOID _app_command_logerrshow (
 {
 	PR_STRING viewer_path;
 	PR_STRING process_path;
-	PR_STRING log_path;
-	R_ERROR_INFO error_info;
+	PR_STRING path;
 	NTSTATUS status;
 
-	log_path = _r_app_getlogpath ();
+	path = _r_app_getlogpath ();
 
-	if (_r_fs_exists (log_path->buffer))
-	{
-		viewer_path = _app_getlogviewer ();
+	if (!_r_fs_exists (path->buffer))
+		return;
 
-		if (viewer_path)
-		{
-			process_path = _r_obj_concatstrings (
-				5,
-				L"\"",
-				viewer_path->buffer,
-				L"\" \"",
-				log_path->buffer,
-				L"\""
-			);
+	viewer_path = _app_getlogviewer ();
 
-			status = _r_sys_createprocess (viewer_path->buffer, process_path->buffer, NULL);
+	if (!viewer_path)
+		return;
 
-			if (status != STATUS_SUCCESS)
-			{
-				_r_error_initialize (&error_info, NULL, viewer_path->buffer);
+	process_path = _r_obj_concatstrings (
+		5,
+		L"\"",
+		viewer_path->buffer,
+		L"\" \"",
+		path->buffer,
+		L"\""
+	);
 
-				_r_show_errormessage (hwnd, NULL, status, &error_info);
-			}
+	status = _r_sys_createprocess (viewer_path->buffer, process_path->buffer, NULL);
 
-			_r_obj_dereference (process_path);
-			_r_obj_dereference (viewer_path);
-		}
-	}
+	if (!NT_SUCCESS (status))
+		_r_show_errormessage (hwnd, NULL, status, viewer_path->buffer, ET_NATIVE);
+
+	_r_obj_dereference (process_path);
+	_r_obj_dereference (viewer_path);
 }
 
 VOID _app_command_logerrclear (
@@ -2747,7 +2362,7 @@ VOID _app_command_logerrclear (
 	if (!_r_show_confirmmessage (hwnd, NULL, _r_locale_getstring (IDS_QUESTION), L"ConfirmLogClear"))
 		return;
 
-	_r_fs_deletefile (path->buffer, TRUE);
+	_r_fs_deletefile (path->buffer, NULL);
 }
 
 VOID _app_command_copy (
@@ -2758,18 +2373,16 @@ VOID _app_command_copy (
 {
 	static R_STRINGREF divider_sr = PR_STRINGREF_INIT (DIVIDER_COPY);
 
-	R_STRINGBUILDER buffer;
+	R_STRINGBUILDER sb;
 	PR_STRING string;
 	INT listview_id;
 	INT column_count;
-	INT item_id;
+	INT item_id = -1;
 
 	listview_id = _app_listview_getcurrent (hwnd);
-	item_id = -1;
-
 	column_count = _r_listview_getcolumncount (hwnd, listview_id);
 
-	_r_obj_initializestringbuilder (&buffer);
+	_r_obj_initializestringbuilder (&sb, 512);
 
 	while ((item_id = _r_listview_getnextselected (hwnd, listview_id, item_id)) != -1)
 	{
@@ -2781,16 +2394,16 @@ VOID _app_command_copy (
 
 				if (string)
 				{
-					_r_obj_appendstringbuilder2 (&buffer, string);
-					_r_obj_appendstringbuilder3 (&buffer, &divider_sr);
+					_r_obj_appendstringbuilder2 (&sb, &string->sr);
+					_r_obj_appendstringbuilder2 (&sb, &divider_sr);
 
 					_r_obj_dereference (string);
 				}
 			}
 
-			string = _r_obj_finalstringbuilder (&buffer);
+			string = _r_obj_finalstringbuilder (&sb);
 
-			_r_str_trimstring (string, &divider_sr, 0);
+			_r_str_trimstring (&string->sr, &divider_sr, 0);
 		}
 		else
 		{
@@ -2798,22 +2411,22 @@ VOID _app_command_copy (
 
 			if (string)
 			{
-				_r_obj_appendstringbuilder2 (&buffer, string);
+				_r_obj_appendstringbuilder2 (&sb, &string->sr);
 
 				_r_obj_dereference (string);
 			}
 		}
 
-		_r_obj_appendstringbuilder (&buffer, L"\r\n");
+		_r_obj_appendstringbuilder (&sb, SZ_CRLF);
 	}
 
-	string = _r_obj_finalstringbuilder (&buffer);
+	string = _r_obj_finalstringbuilder (&sb);
 
-	_r_str_trimstring2 (string, DIVIDER_TRIM, 0);
+	_r_str_trimstring2 (&string->sr, DIVIDER_TRIM, 0);
 
 	_r_clipboard_set (hwnd, &string->sr);
 
-	_r_obj_deletestringbuilder (&buffer);
+	_r_obj_deletestringbuilder (&sb);
 }
 
 VOID _app_command_checkbox (
@@ -2827,17 +2440,12 @@ VOID _app_command_checkbox (
 	PR_LIST rules;
 	ULONG_PTR hash_code;
 	INT listview_id;
-	INT item_id;
-	BOOLEAN new_val;
-	BOOLEAN is_changed;
+	INT item_id = -1;
+	BOOLEAN new_val = (ctrl_id == IDM_CHECK);
+	BOOLEAN is_changed = FALSE;
 
 	rules = _r_obj_createlist_ex (8, &_r_obj_dereference);
-
 	listview_id = _app_listview_getcurrent (hwnd);
-	item_id = -1;
-
-	new_val = (ctrl_id == IDM_CHECK);
-	is_changed = FALSE;
 
 	if (listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP)
 	{
@@ -2937,7 +2545,7 @@ VOID _app_command_checkbox (
 	{
 		_app_listview_updateby_id (hwnd, listview_id, PR_UPDATE_FORCE);
 
-		_app_profile_save ();
+		_app_profile_save (hwnd);
 	}
 }
 
@@ -2945,7 +2553,7 @@ VOID _app_command_delete (
 	_In_ HWND hwnd
 )
 {
-	static R_STRINGREF crlf = PR_STRINGREF_INIT (L"\r\n");
+	static R_STRINGREF crlf = PR_STRINGREF_INIT (SZ_CRLF);
 
 	HANDLE hengine;
 	R_STRINGBUILDER sb;
@@ -2957,8 +2565,8 @@ VOID _app_command_delete (
 	PITEM_NETWORK ptr_network;
 	PR_HASHTABLE apps_checker;
 	ULONG_PTR hash_code;
-	SIZE_T rule_idx;
-	SIZE_T enum_key;
+	ULONG_PTR rule_idx;
+	ULONG_PTR enum_key;
 	LPARAM lparam;
 	INT listview_id;
 	INT selected_count;
@@ -2978,15 +2586,15 @@ VOID _app_command_delete (
 
 	if (listview_id != IDC_NETWORK)
 	{
-		_r_obj_initializestringbuilder (&sb);
+		_r_obj_initializestringbuilder (&sb, 256);
 
 		string = _r_locale_getstring_ex (IDS_QUESTION_DELETE);
 
 		if (string)
 		{
-			_r_obj_appendstringbuilder2 (&sb, string);
-			_r_obj_appendstringbuilder3 (&sb, &crlf);
-			_r_obj_appendstringbuilder3 (&sb, &crlf);
+			_r_obj_appendstringbuilder2 (&sb, &string->sr);
+			_r_obj_appendstringbuilder2 (&sb, &crlf);
+			_r_obj_appendstringbuilder2 (&sb, &crlf);
 
 			_r_obj_dereference (string);
 		}
@@ -3006,8 +2614,8 @@ VOID _app_command_delete (
 			if (string)
 			{
 				_r_obj_appendstringbuilderformat (&sb, L"%" TEXT (PRId32) ") ", j);
-				_r_obj_appendstringbuilder2 (&sb, string);
-				_r_obj_appendstringbuilder3 (&sb, &crlf);
+				_r_obj_appendstringbuilder2 (&sb, &string->sr);
+				_r_obj_appendstringbuilder2 (&sb, &crlf);
 
 				_r_obj_dereference (string);
 			}
@@ -3017,11 +2625,12 @@ VOID _app_command_delete (
 
 		string = _r_obj_finalstringbuilder (&sb);
 
-		_r_str_trimstring (string, &crlf, PR_TRIM_END_ONLY);
+		_r_str_trimstring (&string->sr, &crlf, PR_TRIM_END_ONLY);
 
 		if (_r_show_message (hwnd, MB_YESNO | MB_ICONEXCLAMATION, NULL, string->buffer) != IDYES)
 		{
 			_r_obj_dereference (string);
+
 			return;
 		}
 
@@ -3045,7 +2654,7 @@ VOID _app_command_delete (
 
 			if (!ptr_app->is_undeletable) // skip "undeletable" apps
 			{
-				if (!_r_obj_isarrayempty (ptr_app->guids))
+				if (!_r_obj_isempty (ptr_app->guids))
 					_r_obj_addarrayitems (guids, ptr_app->guids->items, ptr_app->guids->count);
 
 				_r_listview_deleteitem (hwnd, listview_id, i);
@@ -3072,10 +2681,8 @@ VOID _app_command_delete (
 			{
 				apps_checker = _r_obj_createhashtable (sizeof (SHORT), NULL);
 
-				if (!_r_obj_isarrayempty (ptr_rule->guids))
-				{
+				if (!_r_obj_isempty (ptr_rule->guids))
 					_r_obj_addarrayitems (guids, ptr_rule->guids->items, ptr_rule->guids->count);
-				}
 
 				enum_key = 0;
 
@@ -3134,7 +2741,7 @@ VOID _app_command_delete (
 
 	if (guids)
 	{
-		if (!_r_obj_isarrayempty (guids))
+		if (!_r_obj_isempty (guids))
 		{
 			if (_wfp_isfiltersinstalled ())
 			{
@@ -3150,7 +2757,7 @@ VOID _app_command_delete (
 
 	_app_listview_updateby_id (hwnd, listview_id, 0);
 
-	_app_profile_save ();
+	_app_profile_save (hwnd);
 }
 
 VOID _app_command_disable (
@@ -3161,21 +2768,19 @@ VOID _app_command_disable (
 	PITEM_APP ptr_app;
 	ULONG_PTR app_hash;
 	INT listview_id;
-	INT item_id;
-	BOOL new_val;
+	INT item_id = -1;
+	BOOL new_val = -1;
 
 	listview_id = _app_listview_getcurrent (hwnd);
 
 	// note: these commands only for apps...
-	if (!(listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP))
+	if (!(listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP) && listview_id != IDC_LOG)
 		return;
-
-	item_id = -1;
-	new_val = -1;
 
 	while ((item_id = _r_listview_getnextselected (hwnd, listview_id, item_id)) != -1)
 	{
-		app_hash = _app_listview_getitemcontext (hwnd, listview_id, item_id);
+		app_hash = _app_listview_getappcontext (hwnd, listview_id, item_id);
+
 		ptr_app = _app_getappitem (app_hash);
 
 		if (!ptr_app)
@@ -3187,6 +2792,16 @@ VOID _app_command_disable (
 				new_val = !ptr_app->is_silent;
 
 			_app_setappinfo (ptr_app, INFO_IS_SILENT, IntToPtr (new_val));
+		}
+		else if (ctrl_id == IDM_DISABLEREMOVAL)
+		{
+			if (_app_isdisabledremoval (app_hash))
+				continue;
+
+			if (new_val == -1)
+				new_val = !ptr_app->is_undeletable;
+
+			_app_setappinfo (ptr_app, INFO_IS_UNDELETABLE, IntToPtr (new_val));
 		}
 		else if (ctrl_id == IDM_DISABLETIMER)
 		{
@@ -3200,7 +2815,7 @@ VOID _app_command_disable (
 
 	_app_listview_updateby_id (hwnd, listview_id, 0);
 
-	_app_profile_save ();
+	_app_profile_save (hwnd);
 }
 
 VOID _app_command_openeditor (
@@ -3213,11 +2828,11 @@ VOID _app_command_openeditor (
 	PITEM_LOG ptr_log;
 	PR_STRING string;
 	ULONG_PTR hash_code;
-	SIZE_T id_code;
+	ULONG_PTR id_code;
 	INT listview_id;
-	INT item_id;
+	INT item_id = -1;
 
-	ptr_rule = _app_addrule (NULL, NULL, NULL, FWP_DIRECTION_OUTBOUND, 0, 0);
+	ptr_rule = _app_addrule (NULL, NULL, NULL, FWP_DIRECTION_OUTBOUND, FWP_ACTION_PERMIT, 0, 0);
 
 	_app_ruleenable (ptr_rule, TRUE, FALSE);
 
@@ -3225,8 +2840,6 @@ VOID _app_command_openeditor (
 
 	if (listview_id >= IDC_APPS_PROFILE && listview_id <= IDC_APPS_UWP)
 	{
-		item_id = -1;
-
 		while ((item_id = _r_listview_getnextselected (hwnd, listview_id, item_id)) != -1)
 		{
 			hash_code = _app_listview_getitemcontext (hwnd, listview_id, item_id);
@@ -3255,19 +2868,13 @@ VOID _app_command_openeditor (
 				{
 					if (!_app_isappfound (ptr_network->app_hash))
 					{
-						ptr_network->app_hash = _app_addapplication (
-							hwnd,
-							DATA_UNKNOWN,
-							ptr_network->path,
-							NULL,
-							NULL
-						);
+						ptr_network->app_hash = _app_addapplication (hwnd, DATA_UNKNOWN, ptr_network->path, NULL, NULL);
 
 						if (ptr_network->app_hash)
 						{
 							_app_listview_updateby_param (hwnd, ptr_network->app_hash, PR_SETITEM_UPDATE, TRUE);
 
-							_app_profile_save ();
+							_app_profile_save (hwnd);
 						}
 					}
 
@@ -3276,24 +2883,10 @@ VOID _app_command_openeditor (
 
 				ptr_rule->protocol = ptr_network->protocol;
 
-				string = _app_formataddress (
-					ptr_network->af,
-					0,
-					&ptr_network->remote_addr,
-					ptr_network->remote_port,
-					FMTADDR_AS_RULE
-				);
-
+				string = _app_formataddress (ptr_network->af, 0, &ptr_network->remote_addr, ptr_network->remote_port, FMTADDR_AS_RULE);
 				_r_obj_movereference (&ptr_rule->rule_remote, string);
 
-				string = _app_formataddress (
-					ptr_network->af,
-					0,
-					&ptr_network->local_addr,
-					ptr_network->local_port,
-					FMTADDR_AS_RULE
-				);
-
+				string = _app_formataddress (ptr_network->af, 0, &ptr_network->local_addr, ptr_network->local_port, FMTADDR_AS_RULE);
 				_r_obj_movereference (&ptr_rule->rule_local, string);
 
 				_r_obj_dereference (ptr_network);
@@ -3318,19 +2911,13 @@ VOID _app_command_openeditor (
 				{
 					if (!_app_isappfound (ptr_log->app_hash))
 					{
-						ptr_log->app_hash = _app_addapplication (
-							hwnd,
-							DATA_UNKNOWN,
-							ptr_log->path,
-							NULL,
-							NULL
-						);
+						ptr_log->app_hash = _app_addapplication (hwnd, DATA_UNKNOWN, ptr_log->path, NULL, NULL);
 
 						if (ptr_log->app_hash)
 						{
 							_app_listview_updateby_param (hwnd, ptr_log->app_hash, PR_SETITEM_UPDATE, TRUE);
 
-							_app_profile_save ();
+							_app_profile_save (hwnd);
 						}
 					}
 
@@ -3340,24 +2927,10 @@ VOID _app_command_openeditor (
 				ptr_rule->protocol = ptr_log->protocol;
 				ptr_rule->direction = ptr_log->direction;
 
-				string = _app_formataddress (
-					ptr_log->af,
-					0,
-					&ptr_log->remote_addr,
-					ptr_log->remote_port,
-					FMTADDR_AS_RULE
-				);
-
+				string = _app_formataddress (ptr_log->af, 0, &ptr_log->remote_addr, ptr_log->remote_port, FMTADDR_AS_RULE);
 				_r_obj_movereference (&ptr_rule->rule_remote, string);
 
-				string = _app_formataddress (
-					ptr_log->af,
-					0,
-					&ptr_log->local_addr,
-					ptr_log->local_port,
-					FMTADDR_AS_RULE
-				);
-
+				string = _app_formataddress (ptr_log->af, 0, &ptr_log->local_addr, ptr_log->local_port, FMTADDR_AS_RULE);
 				_r_obj_movereference (&ptr_rule->rule_local, string);
 
 				_r_obj_dereference (ptr_log);
@@ -3378,7 +2951,7 @@ VOID _app_command_openeditor (
 			_app_listview_addruleitem (hwnd, ptr_rule, id_code, TRUE);
 			_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE);
 
-			_app_profile_save ();
+			_app_profile_save (hwnd);
 		}
 
 		_app_editor_deletewindow (context);
@@ -3424,7 +2997,7 @@ VOID _app_command_properties (
 
 			_app_listview_updateby_id (hwnd, listview_id, 0);
 
-			_app_profile_save ();
+			_app_profile_save (hwnd);
 
 			_app_editor_deletewindow (context);
 		}
@@ -3449,7 +3022,7 @@ VOID _app_command_properties (
 
 			_app_listview_updateby_id (hwnd, listview_id, 0);
 
-			_app_profile_save ();
+			_app_profile_save (hwnd);
 
 			_app_editor_deletewindow (context);
 		}
@@ -3468,19 +3041,13 @@ VOID _app_command_properties (
 		{
 			if (!_app_isappfound (ptr_network->app_hash))
 			{
-				ptr_network->app_hash = _app_addapplication (
-					hwnd,
-					DATA_UNKNOWN,
-					ptr_network->path,
-					NULL,
-					NULL
-				);
+				ptr_network->app_hash = _app_addapplication (hwnd, DATA_UNKNOWN, ptr_network->path, NULL, NULL);
 
 				if (ptr_network->app_hash)
 				{
 					_app_listview_updateby_param (hwnd, ptr_network->app_hash, PR_SETITEM_UPDATE, TRUE);
 
-					_app_profile_save ();
+					_app_profile_save (hwnd);
 				}
 			}
 
@@ -3502,19 +3069,13 @@ VOID _app_command_properties (
 		{
 			if (!_app_isappfound (ptr_log->app_hash))
 			{
-				ptr_log->app_hash = _app_addapplication (
-					hwnd,
-					DATA_UNKNOWN,
-					ptr_log->path,
-					NULL,
-					NULL
-				);
+				ptr_log->app_hash = _app_addapplication (hwnd, DATA_UNKNOWN, ptr_log->path, NULL, NULL);
 
 				if (ptr_log->app_hash)
 				{
 					_app_listview_updateby_param (hwnd, ptr_log->app_hash, PR_SETITEM_UPDATE, TRUE);
 
-					_app_profile_save ();
+					_app_profile_save (hwnd);
 				}
 			}
 
@@ -3530,118 +3091,143 @@ VOID _app_command_purgeunused (
 	_In_ HWND hwnd
 )
 {
-	PITEM_APP ptr_app;
-	ULONG_PTR hash_code;
-	SIZE_T enum_key;
+	R_STRINGBUILDER sb;
+	PITEM_APP ptr_app = NULL;
 	PR_HASHTABLE apps_list;
+	PR_STRING string = NULL;
 	PR_ARRAY guids;
 	HANDLE hengine;
-	INT listview_id;
-	INT item_id;
-	BOOLEAN is_deleted;
+	ULONG_PTR enum_key = 0;
+	ULONG_PTR hash_code;
 
-	apps_list = _r_obj_createhashtable (sizeof (SHORT), NULL);
+	apps_list = _r_obj_createhashtable (sizeof (ULONG_PTR), NULL);
 	guids = _r_obj_createarray (sizeof (GUID), NULL);
 
-	is_deleted = FALSE;
+	_r_obj_initializestringbuilder (&sb, 256);
 
-	enum_key = 0;
+	_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_PURGE_UNUSED));
+	_r_obj_appendstringbuilder (&sb, SZ_CRLF SZ_CRLF);
 
 	_r_queuedlock_acquireshared (&lock_apps);
 
 	while (_r_obj_enumhashtablepointer (apps_table, &ptr_app, &hash_code, &enum_key))
 	{
-		if (!_app_isappunused (ptr_app))
+		if (!_app_isappunused (ptr_app) || ptr_app->type == DATA_APP_SERVICE || ptr_app->type == DATA_APP_UWP)
 			continue;
 
-		listview_id = _app_listview_getbytype (ptr_app->type);
-
-		if (listview_id)
-		{
-			item_id = _app_listview_finditem (hwnd, listview_id, hash_code);
-
-			if (item_id != -1)
-				_r_listview_deleteitem (hwnd, listview_id, item_id);
-		}
+		_app_deleteappitem (hwnd, ptr_app->type, hash_code);
 
 		_app_timer_reset (NULL, ptr_app);
+
 		_app_notify_freeobject (NULL, ptr_app);
 
-		if (!_r_obj_isarrayempty (ptr_app->guids))
+		if (!_r_obj_isempty (ptr_app->guids))
 			_r_obj_addarrayitems (guids, ptr_app->guids->items, ptr_app->guids->count);
 
 		_r_obj_addhashtableitem (apps_list, hash_code, NULL);
 
-		is_deleted = TRUE;
+		string = _app_getappdisplayname (ptr_app, FALSE);
+
+		if (string)
+		{
+			_r_obj_appendstringbuilder2 (&sb, &string->sr);
+			_r_obj_appendstringbuilder (&sb, SZ_CRLF);
+
+			_r_obj_dereference (string);
+		}
 	}
 
 	_r_queuedlock_releaseshared (&lock_apps);
 
-	if (is_deleted)
+	if (_r_obj_gethashtablesize (apps_list))
 	{
 		enum_key = 0;
 
-		_r_queuedlock_acquireexclusive (&lock_apps);
+		string = _r_obj_finalstringbuilder (&sb);
 
-		while (_r_obj_enumhashtable (apps_list, NULL, &hash_code, &enum_key))
+		_r_str_trimstring2 (&string->sr, SZ_CRLF, PR_TRIM_END_ONLY);
+
+		if (_r_show_confirmmessage (hwnd, NULL, string->buffer, L"ConfirmUnused"))
 		{
-			_app_freeapplication (hwnd, hash_code);
+			_r_queuedlock_acquireexclusive (&lock_apps);
+
+			while (_r_obj_enumhashtable (apps_list, NULL, &hash_code, &enum_key))
+			{
+				_app_freeapplication (hwnd, hash_code);
+			}
+
+			_r_queuedlock_releaseexclusive (&lock_apps);
+
+			if (!_r_obj_isempty2 (guids) && _wfp_isfiltersinstalled ())
+			{
+				hengine = _wfp_getenginehandle ();
+
+				if (hengine)
+					_wfp_destroyfilters_array (hengine, guids, DBG_ARG);
+			}
+
+			_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
+
+			_app_profile_save (hwnd);
 		}
-
-		_r_queuedlock_releaseexclusive (&lock_apps);
-
-		if (!_r_obj_isarrayempty (guids) && _wfp_isfiltersinstalled ())
-		{
-			hengine = _wfp_getenginehandle ();
-
-			if (hengine)
-				_wfp_destroyfilters_array (hengine, guids, DBG_ARG);
-		}
-
-		_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
-		_app_profile_save ();
 	}
 
-	_r_obj_dereference (guids);
+	_r_obj_deletestringbuilder (&sb);
+
 	_r_obj_dereference (apps_list);
+	_r_obj_dereference (guids);
 }
 
 VOID _app_command_purgetimers (
 	_In_ HWND hwnd
 )
 {
+	R_STRINGBUILDER sb;
 	HANDLE hengine;
+	PR_STRING string;
 	PR_LIST rules;
-	PITEM_APP ptr_app;
-	SIZE_T enum_key;
+	PITEM_APP ptr_app = NULL;
+	ULONG_PTR enum_key = 0;
 
 	if (!_app_istimersactive ())
 		return;
 
-	if (_r_show_message (hwnd, MB_YESNO | MB_ICONEXCLAMATION, NULL, _r_locale_getstring (IDS_QUESTION_TIMERS)) != IDYES)
-		return;
-
 	rules = _r_obj_createlist (NULL);
 
-	_r_queuedlock_acquireshared (&lock_apps);
+	_r_obj_initializestringbuilder (&sb, 256);
 
-	enum_key = 0;
+	_r_obj_appendstringbuilder (&sb, _r_locale_getstring (IDS_QUESTION_TIMERS));
+	_r_obj_appendstringbuilder (&sb, SZ_CRLF SZ_CRLF);
+
+	_r_queuedlock_acquireshared (&lock_apps);
 
 	while (_r_obj_enumhashtablepointer (apps_table, &ptr_app, NULL, &enum_key))
 	{
 		if (_app_istimerset (ptr_app))
 		{
-			_app_timer_reset (hwnd, ptr_app);
-
 			_r_obj_addlistitem (rules, ptr_app);
+
+			string = _app_getappdisplayname (ptr_app, FALSE);
+
+			if (string)
+			{
+				_r_obj_appendstringbuilder2 (&sb, &string->sr);
+				_r_obj_appendstringbuilder (&sb, SZ_CRLF);
+
+				_r_obj_dereference (string);
+			}
 		}
 	}
 
 	_r_queuedlock_releaseshared (&lock_apps);
 
-	if (rules)
+	if (!_r_obj_isempty2 (rules))
 	{
-		if (!_r_obj_islistempty (rules))
+		string = _r_obj_finalstringbuilder (&sb);
+
+		_r_str_trimstring2 (&string->sr, SZ_CRLF, PR_TRIM_END_ONLY);
+
+		if (_r_show_confirmmessage (hwnd, NULL, string->buffer, L"ConfirmTimers"))
 		{
 			if (_wfp_isfiltersinstalled ())
 			{
@@ -3650,14 +3236,24 @@ VOID _app_command_purgetimers (
 				if (hengine)
 					_wfp_create3filters (hengine, rules, DBG_ARG, FALSE);
 			}
-		}
 
-		_r_obj_dereference (rules);
+			for (ULONG_PTR i = 0; i < _r_obj_getlistsize (rules); i++)
+			{
+				ptr_app = _r_obj_getlistitem (rules, i);
+
+				if (ptr_app)
+					_app_timer_reset (hwnd, ptr_app);
+			}
+
+			_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
+
+			_app_profile_save (hwnd);
+		}
 	}
 
-	_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
+	_r_obj_deletestringbuilder (&sb);
 
-	_app_profile_save ();
+	_r_obj_dereference (rules);
 }
 
 VOID _app_command_selectfont (
@@ -3667,6 +3263,7 @@ VOID _app_command_selectfont (
 	CHOOSEFONT cf = {0};
 	LOGFONT lf = {0};
 	LONG dpi_value;
+	UINT flags;
 
 	cf.lStructSize = sizeof (cf);
 	cf.hwndOwner = hwnd;
@@ -3679,18 +3276,15 @@ VOID _app_command_selectfont (
 
 	_r_config_getfont (L"Font", &lf, dpi_value);
 
-	if (ChooseFont (&cf))
-	{
-		_r_config_setfont (L"Font", &lf, dpi_value);
+	if (!ChooseFontW (&cf))
+		return;
 
-		_app_listview_loadfont (dpi_value, TRUE);
-		_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
+	_r_config_setfont (L"Font", &lf, dpi_value);
 
-		RedrawWindow (
-			hwnd,
-			NULL,
-			NULL,
-			RDW_NOFRAME | RDW_NOINTERNALPAINT | RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN
-		);
-	}
+	_app_listview_loadfont (dpi_value, TRUE);
+	_app_listview_updateby_id (hwnd, DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE | PR_UPDATE_FORCE);
+
+	flags = RDW_NOFRAME | RDW_NOINTERNALPAINT | RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN;
+
+	RedrawWindow (hwnd, NULL, NULL, flags);
 }

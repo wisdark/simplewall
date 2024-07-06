@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -17,7 +17,7 @@ VOID _app_settab_id (
 	_In_ INT page_id
 );
 
-LPCWSTR _app_getstateaction (
+LPWSTR _app_getstateaction (
 	_In_ ENUM_INSTALL_TYPE install_type
 );
 

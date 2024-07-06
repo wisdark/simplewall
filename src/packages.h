@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -13,14 +13,25 @@ VOID _app_package_parsepath (
 );
 
 VOID _app_package_getpackagebyname (
-	_In_ HKEY hkey,
+	_In_ HANDLE hroot,
+	_In_ LPCWSTR path,
 	_In_ PR_STRING key_name
 );
 
 VOID _app_package_getpackagebysid (
-	_In_ HKEY hkey,
+	_In_ HANDLE hroot,
+	_In_ LPCWSTR path,
 	_In_ PR_STRING key_name
 );
 
-VOID _app_package_getpackageslist ();
-VOID _app_package_getserviceslist ();
+NTSTATUS NTAPI _app_package_threadproc (
+	_In_ PVOID arglist
+);
+
+VOID _app_package_getpackageslist (
+	_In_ HWND hwnd
+);
+
+VOID _app_package_getserviceslist (
+	_In_ HWND hwnd
+);

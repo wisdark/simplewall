@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -18,6 +18,7 @@ LONG _app_icons_getdefaultapp_id (
 	_In_ ENUM_TYPE_DATA type
 );
 
+_Ret_maybenull_
 HICON _app_icons_getsafeapp_hicon (
 	_In_ ULONG_PTR app_hash
 );

@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -7,10 +7,11 @@ typedef struct _NOTIFY_CONTEXT
 {
 	HWND hwnd;
 
-	HBITMAP hbmp_allow;
-	HBITMAP hbmp_block;
-	HBITMAP hbmp_cross;
-	HBITMAP hbmp_rules;
+	HICON hico_allow;
+	HICON hico_block;
+	HICON hico_cross;
+	HICON hico_next;
+	HICON hico_rules;
 
 	HFONT hfont_title;
 	HFONT hfont_link;
@@ -73,8 +74,7 @@ ULONG_PTR _app_notify_getnextapp_id (
 
 VOID _app_notify_setapp_icon (
 	_In_ HWND hwnd,
-	_In_opt_ HICON hicon,
-	_In_ BOOLEAN is_redraw
+	_In_opt_ HICON hicon
 );
 
 VOID _app_notify_setapp_id (

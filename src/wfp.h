@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -40,16 +40,16 @@ BOOLEAN _wfp_isfiltersapplying ();
 
 BOOLEAN _wfp_isfiltersinstalled ();
 
-_Ret_maybenull_
 HANDLE _wfp_getenginehandle ();
 
 ENUM_INSTALL_TYPE _wfp_getinstalltype ();
 
 PR_STRING _wfp_getlayername (
-	_In_ LPCGUID layer_guid
+	_In_ LPGUID layer_guid
 );
 
 BOOLEAN _wfp_initialize (
+	_In_opt_ HWND hwnd,
 	_In_ HANDLE engine_handle
 );
 
@@ -65,13 +65,13 @@ VOID _wfp_installfilters (
 BOOLEAN _wfp_transact_start (
 	_In_ HANDLE engine_handle,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line
+	_In_ ULONG line
 );
 
 BOOLEAN _wfp_transact_commit (
 	_In_ HANDLE engine_handle,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line
+	_In_ ULONG line
 );
 
 ULONG _wfp_createcallout (
@@ -82,7 +82,7 @@ ULONG _wfp_createcallout (
 
 BOOLEAN _wfp_deletefilter (
 	_In_ HANDLE engine_handle,
-	_In_ LPCGUID filter_id
+	_In_ LPGUID filter_id
 );
 
 ULONG _wfp_createfilter (
@@ -105,11 +105,11 @@ VOID _wfp_destroyfilters (
 	_In_ HANDLE engine_handle
 );
 
-BOOLEAN _wfp_destroyfilters_array (
+VOID _wfp_destroyfilters_array (
 	_In_ HANDLE engine_handle,
 	_In_ PR_ARRAY guids,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line
+	_In_ ULONG line
 );
 
 BOOLEAN _wfp_createrulefilter (
@@ -128,9 +128,9 @@ BOOLEAN _wfp_createrulefilter (
 
 BOOLEAN _wfp_create4filters (
 	_In_ HANDLE engine_handle,
-	_In_  PR_LIST rules,
+	_In_ PR_LIST rules,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line,
+	_In_ ULONG line,
 	_In_ BOOLEAN is_intransact
 );
 
@@ -138,14 +138,14 @@ BOOLEAN _wfp_create3filters (
 	_In_ HANDLE engine_handle,
 	_In_ PR_LIST rules,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line,
+	_In_ ULONG line,
 	_In_ BOOLEAN is_intransact
 );
 
 BOOLEAN _wfp_create2filters (
 	_In_ HANDLE engine_handle,
 	_In_ LPCWSTR file_name,
-	_In_ UINT line,
+	_In_ ULONG line,
 	_In_ BOOLEAN is_intransact
 );
 
@@ -153,14 +153,14 @@ _Success_ (return == ERROR_SUCCESS)
 ULONG _wfp_dumpcallouts (
 	_In_ HANDLE engine_handle,
 	_In_ LPCGUID provider_id,
-	_Out_ PR_ARRAY_PTR out_buffer
+	_Outptr_ PR_ARRAY_PTR out_buffer
 );
 
 _Success_ (return == ERROR_SUCCESS)
 ULONG _wfp_dumpfilters (
 	_In_ HANDLE engine_handle,
 	_In_ LPCGUID provider_id,
-	_Out_ PR_ARRAY_PTR out_buffer
+	_Outptr_ PR_ARRAY_PTR out_buffer
 );
 
 VOID NTAPI _wfp_applythread (
@@ -174,6 +174,7 @@ VOID _wfp_firewallenable (
 
 BOOLEAN _wfp_firewallisenabled ();
 
+_Success_ (NT_SUCCESS (return))
 NTSTATUS _FwpmGetAppIdFromFileName1 (
 	_In_ PR_STRING path,
 	_In_ ENUM_TYPE_DATA type,
@@ -182,7 +183,7 @@ NTSTATUS _FwpmGetAppIdFromFileName1 (
 
 VOID ByteBlobAlloc (
 	_In_ LPCVOID data,
-	_In_ SIZE_T bytes_count,
+	_In_ ULONG_PTR bytes_count,
 	_Out_ PVOID_PTR byte_blob
 );
 

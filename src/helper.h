@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -17,19 +17,19 @@ typedef struct _ICON_INFORMATION
 // CryptCATAdminAcquireContext2 (win8+)
 typedef BOOL (WINAPI *CCAAC2)(
 	_Out_ PHANDLE hcat_admin,
-	_In_opt_ LPCGUID subsystem,
-	_In_opt_ LPCWSTR hash_algorithm,
-	_In_opt_ PCCERT_STRONG_SIGN_PARA strong_hash_policy,
-	_Reserved_ ULONG flags
+	_In_opt_ LPCGUID pgSubsystem,
+	_In_opt_ PCWSTR pwszHashAlgorithm,
+	_In_opt_ PCCERT_STRONG_SIGN_PARA pStrongHashPolicy,
+	_Reserved_ DWORD dwFlags
 	);
 
 // CryptCATAdminCalcHashFromFileHandle2 (win8+)
 typedef BOOL (WINAPI *CCAHFFH2)(
-	_In_ HCATADMIN hcat_admin,
-	_In_ HANDLE hfile,
-	_Inout_ PULONG hash_length,
-	_Out_writes_bytes_to_opt_ (*hash_length, *hash_length) PBYTE hash_buffer,
-	_Reserved_ ULONG flags
+	_In_ HCATADMIN hCatAdmin,
+	_In_ HANDLE hFile,
+	_Inout_ DWORD *pcbHash,
+	_Out_writes_bytes_to_opt_ (*pcbHash, *pcbHash) BYTE *pbHash,
+	_Reserved_ DWORD dwFlags
 	);
 
 #define FMTADDR_AS_RULE 0x0001
@@ -92,12 +92,12 @@ PR_STRING _app_formataddress_interlocked (
 	_In_ LPCVOID address
 );
 
-_Success_ (return)
-BOOLEAN _app_formatip (
+_Success_ (NT_SUCCESS (return))
+NTSTATUS _app_formatip (
 	_In_ ADDRESS_FAMILY af,
 	_In_ LPCVOID address,
-	_Out_writes_to_ (buffer_size, buffer_size) LPWSTR buffer,
-	_In_ ULONG buffer_size,
+	_Out_writes_to_ (buffer_length, buffer_length) LPWSTR buffer,
+	_In_ ULONG buffer_length,
 	_In_ BOOLEAN is_checkempty
 );
 
@@ -114,9 +114,10 @@ PITEM_APP_INFO _app_getappinfobyhash2 (
 _Success_ (return)
 BOOLEAN _app_getappinfoparam2 (
 	_In_ ULONG_PTR app_hash,
+	_In_opt_ INT listview_id,
 	_In_ ENUM_INFO_DATA2 info_data,
 	_Out_writes_bytes_all_ (size) PVOID buffer,
-	_In_ SIZE_T size
+	_In_ ULONG_PTR size
 );
 
 BOOLEAN _app_isappsigned (
@@ -124,12 +125,11 @@ BOOLEAN _app_isappsigned (
 );
 
 BOOLEAN _app_isappvalidbinary (
-	_In_ ENUM_TYPE_DATA type,
-	_In_ PR_STRING path
+	_In_opt_ PR_STRING path
 );
 
 BOOLEAN _app_isappvalidpath (
-	_In_ PR_STRINGREF path
+	_In_opt_ PR_STRING path
 );
 
 _Ret_maybenull_
@@ -148,11 +148,17 @@ VOID _app_getfileicon (
 );
 
 VOID _app_getfilesignatureinfo (
+	_In_ HANDLE hfile,
 	_Inout_ PITEM_APP_INFO ptr_app_info
 );
 
 VOID _app_getfileversioninfo (
 	_Inout_ PITEM_APP_INFO ptr_app_info
+);
+
+PR_STRING _app_getfilehashinfo (
+	_In_ HANDLE hfile,
+	_In_ ULONG_PTR app_hash
 );
 
 ULONG_PTR _app_addcolor (
@@ -217,7 +223,13 @@ PR_STRING _app_resolveaddress_interlocked (
 	_In_ BOOLEAN is_resolutionenabled
 );
 
-VOID _app_queue_fileinformation (
+VOID _app_fileloggingenable ();
+
+NTSTATUS NTAPI _app_timercallback (
+	_In_opt_ PVOID context
+);
+
+VOID _app_getfileinformation (
 	_In_ PR_STRING path,
 	_In_ ULONG_PTR app_hash,
 	_In_ ENUM_TYPE_DATA type,
@@ -231,27 +243,22 @@ VOID _app_queue_resolver (
 	_In_ PVOID base_address
 );
 
-VOID NTAPI _app_queuefileinformation (
+VOID NTAPI _app_queue_fileinformation (
 	_In_ PVOID arglist,
 	_In_ ULONG busy_count
 );
 
-VOID NTAPI _app_queuenotifyinformation (
+VOID NTAPI _app_queue_notifyinformation (
 	_In_ PVOID arglist,
 	_In_ ULONG busy_count
 );
 
-VOID NTAPI _app_queueresolveinformation (
+VOID NTAPI _app_queue_resolveinformation (
 	_In_ PVOID arglist,
 	_In_ ULONG busy_count
 );
 
-_Ret_maybenull_
-HBITMAP _app_bitmapfrompng (
-	_In_opt_ HINSTANCE hinst,
-	_In_ LPCWSTR name,
-	_In_ LONG width
-);
+BOOLEAN _app_wufixenabled ();
 
 VOID _app_wufixhelper (
 	_In_ SC_HANDLE hsvcmgr,

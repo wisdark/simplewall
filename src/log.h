@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #pragma once
 
@@ -35,15 +35,6 @@ typedef ULONG (WINAPI *FWPMNES1)(
 	_In_ HANDLE engine_handle,
 	_In_ const FWPM_NET_EVENT_SUBSCRIPTION0 *subscription,
 	_In_ FWPM_NET_EVENT_CALLBACK1 callback,
-	_In_opt_ PVOID context,
-	_Out_ PHANDLE events_handle
-	);
-
-// FwpmNetEventSubscribe0 (win7+)
-typedef ULONG (WINAPI *FWPMNES0)(
-	_In_ HANDLE engine_handle,
-	_In_ const FWPM_NET_EVENT_SUBSCRIPTION0 *subscription,
-	_In_ FWPM_NET_EVENT_CALLBACK0 callback,
 	_In_opt_ PVOID context,
 	_Out_ PHANDLE events_handle
 	);
@@ -90,6 +81,7 @@ VOID _app_logwrite_ui (
 );
 
 VOID _wfp_logsubscribe (
+	_In_opt_ HWND hwnd,
 	_In_ HANDLE engine_handle
 );
 
@@ -107,31 +99,31 @@ VOID CALLBACK _wfp_logcallback (
 
 // win7+ callback
 VOID CALLBACK _wfp_logcallback0 (
-	_In_opt_ PVOID context,
+	_In_ PVOID context,
 	_In_ const FWPM_NET_EVENT1* event_data
 );
 
 // win8+ callback
 VOID CALLBACK _wfp_logcallback1 (
-	_In_opt_ PVOID context,
+	_In_ PVOID context,
 	_In_ const FWPM_NET_EVENT2* event_data
 );
 
 // win10rs1+ callback
 VOID CALLBACK _wfp_logcallback2 (
-	_In_opt_ PVOID context,
+	_In_ PVOID context,
 	_In_ const FWPM_NET_EVENT3* event_data
 );
 
 // win10rs4+ callback
 VOID CALLBACK _wfp_logcallback3 (
-	_In_opt_ PVOID context,
+	_In_ PVOID context,
 	_In_ const FWPM_NET_EVENT4* event_data
 );
 
 // win10rs5+ callback
 VOID CALLBACK _wfp_logcallback4 (
-	_In_opt_ PVOID context,
+	_In_ PVOID context,
 	_In_ const FWPM_NET_EVENT5* event_data
 );
 

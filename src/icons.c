@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #include "global.h"
 
@@ -16,16 +16,10 @@ PICON_INFORMATION _app_icons_getdefault ()
 		path = _r_obj_concatstrings (
 			2,
 			_r_sys_getsystemdirectory ()->buffer,
-			L"\\svchost.exe"
+			PATH_SVCHOST
 		);
 
-		_app_icons_loadfromfile (
-			path,
-			0,
-			&icon_info.app_icon_id,
-			&icon_info.app_hicon,
-			FALSE
-		);
+		_app_icons_loadfromfile (path, 0, &icon_info.app_icon_id, &icon_info.app_hicon, FALSE);
 
 		// load default service icons
 		_r_obj_dereference (path);
@@ -36,35 +30,23 @@ PICON_INFORMATION _app_icons_getdefault ()
 			L"\\shell32.dll"
 		);
 
-		_app_icons_loadfromfile (
-			path,
-			0,
-			&icon_info.service_icon_id,
-			&icon_info.service_hicon,
-			FALSE
-		);
+		_app_icons_loadfromfile (path, 0, &icon_info.service_icon_id, &icon_info.service_hicon, FALSE);
+
+		_r_obj_dereference (path);
 
 		// load uwp icons
 		if (_r_sys_isosversiongreaterorequal (WINDOWS_8))
 		{
-			_r_obj_dereference (path);
-
 			path = _r_obj_concatstrings (
 				2,
 				_r_sys_getsystemdirectory ()->buffer,
 				L"\\wsreset.exe"
 			);
 
-			_app_icons_loadfromfile (
-				path,
-				0,
-				&icon_info.uwp_icon_id,
-				&icon_info.uwp_hicon,
-				FALSE
-			);
-		}
+			_app_icons_loadfromfile (path, 0, &icon_info.uwp_icon_id, &icon_info.uwp_hicon, FALSE);
 
-		_r_obj_dereference (path);
+			_r_obj_dereference (path);
+		}
 
 		_r_initonce_end (&init_once);
 	}
@@ -128,6 +110,7 @@ LONG _app_icons_getdefaultapp_id (
 	return icon_info->app_icon_id;
 }
 
+_Ret_maybenull_
 HICON _app_icons_getsafeapp_hicon (
 	_In_ ULONG_PTR app_hash
 )
@@ -151,7 +134,7 @@ HICON _app_icons_getsafeapp_hicon (
 
 	is_iconshidded = _r_config_getboolean (L"IsIconsHidden", FALSE);
 
-	if (!ptr_app->real_path || is_iconshidded || !_app_isappvalidbinary (ptr_app->type, ptr_app->real_path))
+	if (is_iconshidded || !_app_isappvalidbinary (ptr_app->real_path))
 	{
 		hicon = _app_icons_getdefaulttype_hicon (ptr_app->type, icon_info);
 
@@ -160,16 +143,9 @@ HICON _app_icons_getsafeapp_hicon (
 		return hicon;
 	}
 
-	_app_icons_loadfromfile (
-		ptr_app->real_path,
-		ptr_app->type,
-		&icon_id,
-		&hicon,
-		TRUE
-	);
+	_app_icons_loadfromfile (ptr_app->real_path, ptr_app->type, &icon_id, &hicon, TRUE);
 
-	if (!icon_id ||
-		((ptr_app->type == DATA_APP_UWP || ptr_app->type == DATA_APP_SERVICE) && icon_id == icon_info->app_icon_id))
+	if (!icon_id || ((ptr_app->type == DATA_APP_UWP || ptr_app->type == DATA_APP_SERVICE) && icon_id == icon_info->app_icon_id))
 	{
 		if (hicon)
 			DestroyIcon (hicon);
@@ -194,9 +170,7 @@ VOID _app_icons_loaddefaults (
 
 	if (icon_id_ptr)
 	{
-		if (*icon_id_ptr == 0 ||
-			(type == DATA_APP_UWP && *icon_id_ptr == icon_info->app_icon_id) ||
-			(type == DATA_APP_SERVICE && *icon_id_ptr == icon_info->app_icon_id))
+		if (*icon_id_ptr == 0 || (type == DATA_APP_UWP && *icon_id_ptr == icon_info->app_icon_id) || (type == DATA_APP_SERVICE && *icon_id_ptr == icon_info->app_icon_id))
 		{
 			if (type == DATA_APP_UWP)
 			{
@@ -239,37 +213,17 @@ VOID _app_icons_loadfromfile (
 	_In_ BOOLEAN is_loaddefaults
 )
 {
-	SHFILEINFO shfi = {0};
-	UINT flags;
-
 	if (!icon_id_ptr && !hicon_ptr)
 		return;
 
-	flags = SHGFI_LARGEICON;
-
 	if (icon_id_ptr)
-	{
-		flags |= SHGFI_SYSICONINDEX;
 		*icon_id_ptr = 0;
-	}
 
 	if (hicon_ptr)
-	{
-		flags |= SHGFI_ICON;
 		*hicon_ptr = NULL;
-	}
 
 	if (path)
-	{
-		if (SHGetFileInfo (path->buffer, 0, &shfi, sizeof (shfi), flags))
-		{
-			if (icon_id_ptr)
-				*icon_id_ptr = shfi.iIcon;
-
-			if (hicon_ptr)
-				*hicon_ptr = shfi.hIcon;
-		}
-	}
+		_r_path_geticon (path->buffer, icon_id_ptr, hicon_ptr);
 
 	if (is_loaddefaults)
 		_app_icons_loaddefaults (type, icon_id_ptr, hicon_ptr);

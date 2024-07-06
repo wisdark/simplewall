@@ -1,5 +1,5 @@
 // simplewall
-// Copyright (c) 2016-2023 Henry++
+// Copyright (c) 2016-2024 Henry++
 
 #include "global.h"
 
@@ -11,11 +11,7 @@ HWND _app_notify_getwindow (
 	HWND current_hwnd;
 	HWND new_hwnd;
 
-	current_hwnd = InterlockedCompareExchangePointer (
-		&config.hnotification,
-		NULL,
-		NULL
-	);
+	current_hwnd = _InterlockedCompareExchangePointer (&config.hnotification, NULL, NULL);
 
 	if (current_hwnd)
 	{
@@ -28,21 +24,11 @@ HWND _app_notify_getwindow (
 	if (!ptr_log)
 		return NULL;
 
-	new_hwnd = _r_wnd_createwindow (
-		_r_sys_getimagebase (),
-		MAKEINTRESOURCE (IDD_NOTIFICATION),
-		NULL,
-		&NotificationProc,
-		ptr_log
-	);
+	new_hwnd = _r_wnd_createwindow (_r_sys_getimagebase (), MAKEINTRESOURCEW (IDD_NOTIFICATION), NULL, &NotificationProc, ptr_log);
 
-	WaitForSingleObjectEx (config.hnotify_evt, 2000, FALSE);
+	_r_sys_waitforsingleobject (config.hnotify_evt, 2000);
 
-	current_hwnd = InterlockedCompareExchangePointer (
-		&config.hnotification,
-		NULL,
-		NULL
-	);
+	current_hwnd = _InterlockedCompareExchangePointer (&config.hnotification, NULL, NULL);
 
 	return current_hwnd;
 }
@@ -114,7 +100,7 @@ BOOLEAN _app_notify_command (
 
 		_r_obj_addlistitem (rules, ptr_app);
 	}
-	else if (button_id == IDC_LATER_BTN)
+	else if (button_id == IDC_NEXT_BTN)
 	{
 		// NOTHING!
 	}
@@ -141,7 +127,7 @@ BOOLEAN _app_notify_command (
 	_r_obj_dereference (ptr_app);
 	_r_obj_dereference (rules);
 
-	_app_profile_save ();
+	_app_profile_save (hwnd);
 
 	return TRUE;
 }
@@ -166,15 +152,12 @@ BOOLEAN _app_notify_addobject (
 
 	_r_obj_swapreference (&ptr_app->notification, ptr_log);
 
-	if (SendMessage (hwnd, WM_NOTIFICATION, 0, (LPARAM)ptr_app->notification))
+	if (_r_wnd_sendmessage (hwnd, 0, WM_NOTIFICATION, 0, (LPARAM)ptr_app->notification))
 	{
 		if (_r_config_getboolean (L"IsNotificationsSound", TRUE))
 		{
-			if (!_r_config_getboolean (L"IsNotificationsFullscreenSilentMode", TRUE) ||
-				!_r_wnd_isfullscreenmode ())
-			{
+			if (!_r_config_getboolean (L"IsNotificationsFullscreenSilentMode", TRUE) || !_r_wnd_isfullscreenmode ())
 				_app_notify_playsound ();
-			}
 		}
 
 		return TRUE;
@@ -265,22 +248,14 @@ ULONG_PTR _app_notify_getnextapp_id (
 )
 {
 	PNOTIFY_CONTEXT context;
-	PITEM_APP ptr_app;
-	SIZE_T enum_key;
-	ULONG_PTR app_hash;
+	PITEM_APP ptr_app = NULL;
+	ULONG_PTR enum_key = 0;
+	ULONG_PTR app_hash = 0;
 
 	context = _app_notify_getcontext (hwnd);
 
 	if (context)
-	{
 		app_hash = context->app_hash;
-	}
-	else
-	{
-		app_hash = 0;
-	}
-
-	enum_key = 0;
 
 	_r_queuedlock_acquireshared (&lock_apps);
 
@@ -307,8 +282,7 @@ ULONG_PTR _app_notify_getnextapp_id (
 
 VOID _app_notify_setapp_icon (
 	_In_ HWND hwnd,
-	_In_opt_ HICON hicon,
-	_In_ BOOLEAN is_redraw
+	_In_opt_ HICON hicon
 )
 {
 	PNOTIFY_CONTEXT context;
@@ -325,8 +299,7 @@ VOID _app_notify_setapp_icon (
 	hicon_prev = context->hicon;
 	context->hicon = hicon;
 
-	if (is_redraw)
-		RedrawWindow (hwnd, NULL, NULL, RDW_ALLCHILDREN | RDW_ERASE | RDW_INVALIDATE);
+	RedrawWindow (hwnd, NULL, NULL, RDW_ALLCHILDREN | RDW_ERASE | RDW_INVALIDATE);
 
 	if (hicon_prev)
 		DestroyIcon (hicon_prev);
@@ -357,9 +330,8 @@ VOID _app_notify_show (
 
 	WCHAR window_title[128];
 	PITEM_APP ptr_app;
-	PR_STRING string;
-	PR_STRING localized_string;
-	PR_STRING display_name;
+	PR_STRING localized_string = NULL;
+	PR_STRING string = NULL;
 	HDWP hdefer;
 	BOOLEAN is_fullscreenmode;
 
@@ -368,15 +340,13 @@ VOID _app_notify_show (
 	if (!ptr_app)
 	{
 		DestroyWindow (hwnd);
+
 		return;
 	}
 
-	string = NULL;
-	localized_string = NULL;
-
 	// set notification information
 	_app_notify_setapp_id (hwnd, ptr_log->app_hash);
-	_app_notify_setapp_icon (hwnd, NULL, FALSE);
+	_app_notify_setapp_icon (hwnd, NULL);
 
 	// set window title
 	_r_str_printf (
@@ -387,151 +357,54 @@ VOID _app_notify_show (
 		_r_app_getname ()
 	);
 
-	SetWindowText (hwnd, window_title);
+	_r_ctrl_setstring (hwnd, 0, window_title);
 
 	hdefer = BeginDeferWindowPos (2);
 
 	// print name
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_NAME), L":")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_NAME), L":"));
+	_r_obj_movereference (&string, _app_getappdisplayname (ptr_app, TRUE));
 
-	display_name = _app_getappdisplayname (ptr_app, TRUE);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_FILE_ID,
-		&localized_string->sr,
-		IDC_FILE_TEXT,
-		display_name ? &display_name->sr : &empty_sr
-	);
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_FILE_ID, &localized_string->sr, IDC_FILE_TEXT, string ? &string->sr : &empty_sr);
 
 	// print signature
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_SIGNATURE), L":")
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_SIGNATURE_ID,
-		&localized_string->sr,
-		IDC_SIGNATURE_TEXT,
-		&loading_sr
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_SIGNATURE), L":"));
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_SIGNATURE_ID, &localized_string->sr, IDC_SIGNATURE_TEXT, &loading_sr);
 
 	// print address
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_ADDRESS), L":")
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_ADDRESS_ID,
-		&localized_string->sr,
-		IDC_ADDRESS_TEXT,
-		&loading_sr
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_ADDRESS), L":"));
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_ADDRESS_ID, &localized_string->sr, IDC_ADDRESS_TEXT, &loading_sr);
 
 	// print host
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_HOST), L":")
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_HOST_ID,
-		&localized_string->sr,
-		IDC_HOST_TEXT,
-		&loading_sr
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_HOST), L":"));
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_HOST_ID, &localized_string->sr, IDC_HOST_TEXT, &loading_sr);
 
 	// print port
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_PORT), L":")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_PORT), L":"));
+	_r_obj_movereference (&string, _app_formatport (ptr_log->remote_port, ptr_log->protocol));
 
-	_r_obj_movereference (
-		&string,
-		_app_formatport (ptr_log->remote_port, ptr_log->protocol)
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_PORT_ID,
-		&localized_string->sr,
-		IDC_PORT_TEXT,
-		string ? &string->sr : &empty_sr
-	);
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_PORT_ID, &localized_string->sr, IDC_PORT_TEXT, string ? &string->sr : &empty_sr);
 
 	// print direction
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_DIRECTION), L":")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_DIRECTION), L":"));
+	_r_obj_movereference (&string, _app_db_getdirectionname (ptr_log->direction, ptr_log->is_loopback, TRUE));
 
-	_r_obj_movereference (
-		&string,
-		_app_db_getdirectionname (ptr_log->direction, ptr_log->is_loopback, TRUE)
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_DIRECTION_ID,
-		&localized_string->sr,
-		IDC_DIRECTION_TEXT,
-		string ? &string->sr : &empty_sr
-	);
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_DIRECTION_ID, &localized_string->sr, IDC_DIRECTION_TEXT, string ? &string->sr : &empty_sr);
 
 	// print filter name
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_FILTER), L":")
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_FILTER_ID,
-		&localized_string->sr,
-		IDC_FILTER_TEXT,
-		ptr_log->filter_name ? &ptr_log->filter_name->sr : &empty_sr
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_FILTER), L":"));
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_FILTER_ID, &localized_string->sr, IDC_FILTER_TEXT, ptr_log->filter_name ? &ptr_log->filter_name->sr : &empty_sr);
 
 	// print date
-	_r_obj_movereference (
-		&localized_string,
-		_r_obj_concatstrings (2, _r_locale_getstring (IDS_DATE), L":")
-	);
+	_r_obj_movereference (&localized_string, _r_obj_concatstrings (2, _r_locale_getstring (IDS_DATE), L":"));
+	_r_obj_movereference (&string, _r_format_unixtime (ptr_log->timestamp, FDTF_SHORTDATE | FDTF_LONGTIME));
 
-	_r_obj_movereference (
-		&string,
-		_r_format_unixtime_ex (ptr_log->timestamp, FDTF_SHORTDATE | FDTF_LONGTIME)
-	);
-
-	_r_ctrl_settablestring (
-		hwnd,
-		&hdefer,
-		IDC_DATE_ID,
-		&localized_string->sr,
-		IDC_DATE_TEXT,
-		string ? &string->sr : &empty_sr
-	);
+	_r_ctrl_settablestring (hwnd, &hdefer, IDC_DATE_ID, &localized_string->sr, IDC_DATE_TEXT, string ? &string->sr : &empty_sr);
 
 	if (hdefer)
 		EndDeferWindowPos (hdefer);
 
-	_r_ctrl_setstring (hwnd, IDC_RULES_BTN, _r_locale_getstring (IDS_TRAY_RULES));
+	//_r_ctrl_setstring (hwnd, IDC_RULES_BTN, _r_locale_getstring (IDS_TRAY_RULES));
 	_r_ctrl_setstring (hwnd, IDC_ALLOW_BTN, _r_locale_getstring (IDS_ACTION_ALLOW));
 	_r_ctrl_setstring (hwnd, IDC_BLOCK_BTN, _r_locale_getstring (IDS_ACTION_BLOCK));
 
@@ -560,9 +433,6 @@ VOID _app_notify_show (
 	if (localized_string)
 		_r_obj_dereference (localized_string);
 
-	if (display_name)
-		_r_obj_dereference (display_name);
-
 	_r_obj_dereference (ptr_app);
 }
 
@@ -574,55 +444,41 @@ VOID _app_notify_playsound ()
 	PR_STRING current_path;
 	PR_STRING new_path;
 	PR_STRING expanded_string;
-	HKEY hkey;
+	HANDLE hkey;
 	ULONG flags;
-	LSTATUS status;
+	NTSTATUS status;
 
-	current_path = InterlockedCompareExchangePointer (
-		&cached_path,
-		NULL,
-		NULL
-	);
+	current_path = _InterlockedCompareExchangePointer (&cached_path, NULL, NULL);
 
 	if (!current_path || !_r_fs_exists (current_path->buffer))
 	{
-		status = RegOpenKeyEx (
-			HKEY_CURRENT_USER,
-			L"AppEvents\\Schemes\\Apps\\.Default\\" NOTIFY_SOUND_NAME L"\\.Default",
-			0,
-			KEY_READ,
-			&hkey
-		);
+		status = _r_reg_openkey (HKEY_CURRENT_USER, L"AppEvents\\Schemes\\Apps\\.Default\\" NOTIFY_SOUND_NAME L"\\.Default", KEY_READ, &hkey);
 
-		if (status == ERROR_SUCCESS)
+		if (NT_SUCCESS (status))
 		{
-			new_path = _r_reg_querystring (hkey, NULL, NULL);
+			status = _r_reg_querystring (hkey, NULL, &new_path);
 
-			if (new_path)
+			if (NT_SUCCESS (status))
 			{
-				expanded_string = _r_str_environmentexpandstring (&new_path->sr);
+				status = _r_str_environmentexpandstring (NULL, &new_path->sr, &expanded_string);
 
-				if (expanded_string)
+				if (NT_SUCCESS (status))
 					_r_obj_movereference (&new_path, expanded_string);
 
-				current_path = InterlockedCompareExchangePointer (
-					&cached_path,
-					new_path,
-					current_path
-				);
+				current_path = _InterlockedCompareExchangePointer (&cached_path, new_path, current_path);
 
 				if (current_path)
 					_r_obj_dereference (new_path);
 			}
 
-			RegCloseKey (hkey);
+			NtClose (hkey);
 		}
 	}
 
 	flags = SND_ASYNC | SND_NODEFAULT | SND_NOWAIT | SND_SENTRY;
 
-	if (_r_obj_isstringempty (current_path) || !PlaySound (current_path->buffer, NULL, flags | SND_FILENAME))
-		PlaySound (NOTIFY_SOUND_NAME, NULL, flags);
+	if (_r_obj_isstringempty (current_path) || !PlaySoundW (current_path->buffer, NULL, flags | SND_FILENAME))
+		PlaySoundW (NOTIFY_SOUND_NAME, NULL, flags);
 }
 
 VOID _app_notify_queueinfo (
@@ -635,9 +491,92 @@ VOID _app_notify_queueinfo (
 	context = _r_freelist_allocateitem (&context_free_list);
 
 	context->hwnd = hwnd;
-	context->ptr_log = _r_obj_reference (ptr_log);
+	context->base_address = _r_obj_reference (ptr_log);
 
-	_r_workqueue_queueitem (&resolve_notify_queue, &_app_queuenotifyinformation, context);
+	_r_workqueue_queueitem (&resolve_notify_queue, &_app_queue_notifyinformation, context);
+}
+
+VOID _app_notify_killprocess (
+	_In_ HWND hwnd
+)
+{
+	PSYSTEM_PROCESS_INFORMATION spi;
+	PSYSTEM_PROCESS_INFORMATION process;
+	PNOTIFY_CONTEXT context;
+	HANDLE process_handle;
+	PITEM_APP ptr_app;
+	PR_STRING path;
+	PR_STRING file_name;
+	NTSTATUS status;
+
+	context = _app_notify_getcontext (hwnd);
+
+	if (!context)
+		return;
+
+	ptr_app = _app_getappitem (context->app_hash);
+
+	if (!ptr_app)
+		return;
+
+	status = _r_sys_enumprocesses (&spi);
+
+	if (!NT_SUCCESS (status))
+	{
+		_r_show_errormessage (hwnd, L"Cannot enumerate processes!", status, NULL, ET_NATIVE);
+
+		_r_log (LOG_LEVEL_ERROR, NULL, L"_r_sys_enumprocesses", status, NULL);
+
+		return;
+	}
+
+	file_name = _r_path_getbasenamestring (&ptr_app->real_path->sr);
+
+	process = PR_FIRST_PROCESS (spi);
+
+	do
+	{
+		if (process->ImageName.Buffer)
+		{
+			if (_r_str_compare (process->ImageName.Buffer, file_name->buffer, 0) == 0)
+			{
+				status = _r_sys_getprocessimagepathbyid (process->UniqueProcessId, TRUE, &path);
+
+				if (NT_SUCCESS (status))
+				{
+					if (_r_str_compare (path->buffer, ptr_app->real_path->buffer, 0) == 0)
+					{
+						status = _r_sys_openprocess (process->UniqueProcessId, PROCESS_TERMINATE, &process_handle);
+
+						if (NT_SUCCESS (status))
+						{
+							status = NtTerminateProcess (process_handle, STATUS_SUCCESS);
+
+							if (!NT_SUCCESS (status))
+								_r_show_errormessage (hwnd, L"Cannot terminate process!", status, process->ImageName.Buffer, ET_NATIVE);
+
+							NtClose (process_handle);
+						}
+						else
+						{
+							_r_show_errormessage (hwnd, L"Cannot open process!", status, process->ImageName.Buffer, ET_NATIVE);
+						}
+					}
+
+					_r_obj_dereference (path);
+				}
+				else
+				{
+					_r_show_errormessage (hwnd, L"Cannot get process path!", status, process->ImageName.Buffer, ET_NATIVE);
+				}
+			}
+		}
+	}
+	while (process = PR_NEXT_PROCESS (process));
+
+	_r_obj_dereference (file_name);
+
+	_r_mem_free (spi);
 }
 
 VOID _app_notify_refresh (
@@ -647,15 +586,17 @@ VOID _app_notify_refresh (
 	PITEM_LOG ptr_log;
 	ULONG_PTR app_hash;
 
-	if (!_r_wnd_isvisible (hwnd))
+	if (!_r_wnd_isvisible (hwnd, TRUE))
 	{
 		DestroyWindow (hwnd);
+
 		return;
 	}
 
 	if (!_r_config_getboolean (L"IsNotificationsEnabled", TRUE))
 	{
 		DestroyWindow (hwnd);
+
 		return;
 	}
 
@@ -665,6 +606,7 @@ VOID _app_notify_refresh (
 	if (!ptr_log)
 	{
 		DestroyWindow (hwnd);
+
 		return;
 	}
 
@@ -678,8 +620,8 @@ VOID _app_notify_setposition (
 	_In_ BOOLEAN is_forced
 )
 {
-	MONITORINFO monitor_info;
-	APPBARDATA taskbar_rect;
+	MONITORINFO monitor_info = {0};
+	APPBARDATA taskbar_rect = {0};
 	R_RECTANGLE window_rect;
 	HMONITOR hmonitor;
 	PRECT rect;
@@ -689,9 +631,9 @@ VOID _app_notify_setposition (
 
 	_r_wnd_getposition (hwnd, &window_rect);
 
-	if (!is_forced && _r_wnd_isvisible (hwnd))
+	if (!is_forced && _r_wnd_isvisible (hwnd, FALSE))
 	{
-		_r_wnd_adjustrectangletoworkingarea (&window_rect, NULL);
+		_r_wnd_adjustrectangletoworkingarea (&window_rect, hwnd);
 		_r_wnd_setposition (hwnd, &window_rect.position, NULL);
 
 		return;
@@ -701,16 +643,12 @@ VOID _app_notify_setposition (
 
 	if (is_intray)
 	{
-		RtlZeroMemory (&monitor_info, sizeof (monitor_info));
-
 		monitor_info.cbSize = sizeof (monitor_info);
 
 		hmonitor = MonitorFromWindow (hwnd, MONITOR_DEFAULTTONEAREST);
 
-		if (GetMonitorInfo (hmonitor, &monitor_info))
+		if (GetMonitorInfoW (hmonitor, &monitor_info))
 		{
-			RtlZeroMemory (&taskbar_rect, sizeof (taskbar_rect));
-
 			taskbar_rect.cbSize = sizeof (taskbar_rect);
 
 			if (SHAppBarMessage (ABM_GETTASKBARPOS, &taskbar_rect))
@@ -758,9 +696,10 @@ VOID _app_notify_settimeout (
 )
 {
 	_r_ctrl_enable (hwnd, IDC_RULES_BTN, FALSE);
+	_r_ctrl_enable (hwnd, IDC_KILLPROCESS_BTN, FALSE);
 	_r_ctrl_enable (hwnd, IDC_ALLOW_BTN, FALSE);
 	_r_ctrl_enable (hwnd, IDC_BLOCK_BTN, FALSE);
-	_r_ctrl_enable (hwnd, IDC_LATER_BTN, FALSE);
+	_r_ctrl_enable (hwnd, IDC_NEXT_BTN, FALSE);
 
 	SetTimer (hwnd, NOTIFY_TIMER_SAFETY_ID, NOTIFY_TIMER_SAFETY_TIMEOUT, NULL);
 }
@@ -771,6 +710,11 @@ VOID _app_notify_initialize (
 )
 {
 	NONCLIENTMETRICS ncm = {0};
+	HBITMAP hbmp_allow;
+	HBITMAP hbmp_block;
+	HBITMAP hbmp_cross;
+	HBITMAP hbmp_next;
+	HBITMAP hbmp_rules;
 	LONG icon_small;
 	LONG icon_large;
 
@@ -779,10 +723,11 @@ VOID _app_notify_initialize (
 	SAFE_DELETE_OBJECT (context->hfont_link);
 	SAFE_DELETE_OBJECT (context->hfont_text);
 
-	SAFE_DELETE_OBJECT (context->hbmp_allow);
-	SAFE_DELETE_OBJECT (context->hbmp_block);
-	SAFE_DELETE_OBJECT (context->hbmp_cross);
-	SAFE_DELETE_OBJECT (context->hbmp_rules);
+	SAFE_DELETE_ICON (context->hico_allow);
+	SAFE_DELETE_ICON (context->hico_block);
+	SAFE_DELETE_ICON (context->hico_cross);
+	SAFE_DELETE_ICON (context->hico_next);
+	SAFE_DELETE_ICON (context->hico_rules);
 
 	icon_small = _r_dc_getsystemmetrics (SM_CXSMICON, dpi_value);
 	icon_large = _r_dc_getsystemmetrics (SM_CXICON, dpi_value);
@@ -790,8 +735,8 @@ VOID _app_notify_initialize (
 	// set window icon
 	_r_wnd_seticon (
 		context->hwnd,
-		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCE (SIH_EXCLAMATION), icon_small),
-		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCE (SIH_EXCLAMATION), icon_large)
+		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCEW (SIH_EXCLAMATION), icon_small),
+		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCEW (SIH_EXCLAMATION), icon_large)
 	);
 
 	// set window font
@@ -803,61 +748,72 @@ VOID _app_notify_initialize (
 		context->hfont_link = _app_createfont (&ncm.lfMessageFont, 9, TRUE, dpi_value);
 		context->hfont_text = _app_createfont (&ncm.lfMessageFont, 9, FALSE, dpi_value);
 
-		SendMessage (context->hwnd, WM_SETFONT, (WPARAM)context->hfont_text, TRUE);
+		_r_ctrl_setfont (context->hwnd, 0, context->hfont_text);
 
-		SendDlgItemMessage (context->hwnd, IDC_HEADER_ID, WM_SETFONT, (WPARAM)context->hfont_title, TRUE);
-		SendDlgItemMessage (context->hwnd, IDC_FILE_TEXT, WM_SETFONT, (WPARAM)context->hfont_link, TRUE);
+		_r_ctrl_setfont (context->hwnd, IDC_HEADER_ID, context->hfont_title);
+		_r_ctrl_setfont (context->hwnd, IDC_FILE_TEXT, context->hfont_link);
 
 		for (INT i = IDC_SIGNATURE_TEXT; i <= IDC_DATE_TEXT; i++)
-			SendDlgItemMessage (context->hwnd, i, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, 0);
+			_r_ctrl_settextmargin (context->hwnd, i, 0, 0);
 
-		for (INT i = IDC_SIGNATURE_TEXT; i <= IDC_LATER_BTN; i++)
-			SendDlgItemMessage (context->hwnd, i, WM_SETFONT, (WPARAM)context->hfont_text, TRUE);
+		for (INT i = IDC_SIGNATURE_TEXT; i <= IDC_NEXT_BTN; i++)
+			_r_ctrl_setfont (context->hwnd, i, context->hfont_text);
 	}
 
 	// load images
-	context->hbmp_allow = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_ALLOW), icon_small);
-	context->hbmp_block = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_BLOCK), icon_small);
-	context->hbmp_cross = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_CROSS), icon_small);
-	context->hbmp_rules = _app_bitmapfrompng (NULL, MAKEINTRESOURCE (IDP_SETTINGS), icon_small);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_SETTINGS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_rules);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_ALLOW), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_allow);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_BLOCK), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_block);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_CROSS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_cross);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_NEXT), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_next);
 
 	// set button configuration
-	SendDlgItemMessage (
-		context->hwnd,
-		IDC_RULES_BTN,
-		BM_SETIMAGE,
-		IMAGE_BITMAP,
-		(LPARAM)context->hbmp_rules
-	);
+	if (hbmp_rules)
+	{
+		context->hico_rules = _r_dc_bitmaptoicon (hbmp_rules, icon_small, icon_small);
 
-	SendDlgItemMessage (
-		context->hwnd,
-		IDC_ALLOW_BTN,
-		BM_SETIMAGE,
-		IMAGE_BITMAP,
-		(LPARAM)context->hbmp_allow
-	);
+		DeleteObject (hbmp_rules);
+	}
 
-	SendDlgItemMessage (
-		context->hwnd,
-		IDC_BLOCK_BTN,
-		BM_SETIMAGE,
-		IMAGE_BITMAP,
-		(LPARAM)context->hbmp_block
-	);
+	if (hbmp_cross)
+	{
+		context->hico_cross = _r_dc_bitmaptoicon (hbmp_cross, icon_small, icon_small);
 
-	SendDlgItemMessage (
-		context->hwnd,
-		IDC_LATER_BTN,
-		BM_SETIMAGE,
-		IMAGE_BITMAP,
-		(LPARAM)context->hbmp_cross
-	);
+		DeleteObject (hbmp_cross);
+	}
+
+	if (hbmp_allow)
+	{
+		context->hico_allow = _r_dc_bitmaptoicon (hbmp_allow, icon_small, icon_small);
+
+		DeleteObject (hbmp_allow);
+	}
+
+	if (hbmp_block)
+	{
+		context->hico_block = _r_dc_bitmaptoicon (hbmp_block, icon_small, icon_small);
+
+		DeleteObject (hbmp_block);
+	}
+
+	if (hbmp_next)
+	{
+		context->hico_next = _r_dc_bitmaptoicon (hbmp_next, icon_small, icon_small);
+
+		DeleteObject (hbmp_next);
+	}
+
+	_r_ctrl_seticon (context->hwnd, IDC_RULES_BTN, context->hico_rules);
+	_r_ctrl_seticon (context->hwnd, IDC_KILLPROCESS_BTN, context->hico_cross);
+	_r_ctrl_seticon (context->hwnd, IDC_ALLOW_BTN, context->hico_allow);
+	_r_ctrl_seticon (context->hwnd, IDC_BLOCK_BTN, context->hico_block);
+	_r_ctrl_seticon (context->hwnd, IDC_NEXT_BTN, context->hico_next);
 
 	_r_ctrl_setbuttonmargins (context->hwnd, IDC_RULES_BTN, dpi_value);
+	_r_ctrl_setbuttonmargins (context->hwnd, IDC_KILLPROCESS_BTN, dpi_value);
 	_r_ctrl_setbuttonmargins (context->hwnd, IDC_ALLOW_BTN, dpi_value);
 	_r_ctrl_setbuttonmargins (context->hwnd, IDC_BLOCK_BTN, dpi_value);
-	_r_ctrl_setbuttonmargins (context->hwnd, IDC_LATER_BTN, dpi_value);
+	_r_ctrl_setbuttonmargins (context->hwnd, IDC_NEXT_BTN, dpi_value);
 }
 
 VOID _app_notify_destroy (
@@ -879,10 +835,10 @@ VOID _app_notify_destroy (
 	SAFE_DELETE_OBJECT (context->hfont_link);
 	SAFE_DELETE_OBJECT (context->hfont_text);
 
-	SAFE_DELETE_OBJECT (context->hbmp_allow);
-	SAFE_DELETE_OBJECT (context->hbmp_block);
-	SAFE_DELETE_OBJECT (context->hbmp_cross);
-	SAFE_DELETE_OBJECT (context->hbmp_rules);
+	SAFE_DELETE_ICON (context->hico_allow);
+	SAFE_DELETE_ICON (context->hico_block);
+	SAFE_DELETE_ICON (context->hico_cross);
+	SAFE_DELETE_ICON (context->hico_rules);
 
 	_r_mem_free (context);
 }
@@ -905,7 +861,7 @@ VOID _app_notify_drawgradient (
 	gradient_rect.LowerRight = 1;
 	//gradient_rect.UpperLeft = 0;
 
-	for (ULONG i = 0; i < RTL_NUMBER_OF (trivertx); i++)
+	for (ULONG_PTR i = 0; i < RTL_NUMBER_OF (trivertx); i++)
 	{
 		trivertx[i].Red = GetRValue (gradient_arr[i]) << 8;
 		trivertx[i].Green = GetGValue (gradient_arr[i]) << 8;
@@ -943,22 +899,20 @@ INT_PTR CALLBACK NotificationProc (
 			HWND htip;
 			LONG dpi_value;
 
-			current_hwnd = InterlockedCompareExchangePointer (
-				&config.hnotification,
-				hwnd,
-				config.hnotification
-			);
+			current_hwnd = _InterlockedCompareExchangePointer (&config.hnotification, hwnd, config.hnotification);
 
 			if (current_hwnd)
 				DestroyWindow (current_hwnd);
 
 			// initialize window context
-			context = _r_mem_allocatezero (sizeof (NOTIFY_CONTEXT));
+			context = _r_mem_allocate (sizeof (NOTIFY_CONTEXT));
 
 			_app_notify_setcontext (hwnd, context);
 
 			// set correct position
 			_app_notify_setposition (hwnd, FALSE);
+
+			_r_window_restoreposition (hwnd, L"notification");
 
 			dpi_value = _r_dc_getwindowdpi (hwnd);
 
@@ -971,9 +925,10 @@ INT_PTR CALLBACK NotificationProc (
 			{
 				_r_ctrl_settiptext (htip, hwnd, IDC_FILE_TEXT, LPSTR_TEXTCALLBACK);
 				_r_ctrl_settiptext (htip, hwnd, IDC_RULES_BTN, LPSTR_TEXTCALLBACK);
+				_r_ctrl_settiptext (htip, hwnd, IDC_KILLPROCESS_BTN, LPSTR_TEXTCALLBACK);
 				_r_ctrl_settiptext (htip, hwnd, IDC_ALLOW_BTN, LPSTR_TEXTCALLBACK);
 				_r_ctrl_settiptext (htip, hwnd, IDC_BLOCK_BTN, LPSTR_TEXTCALLBACK);
-				_r_ctrl_settiptext (htip, hwnd, IDC_LATER_BTN, LPSTR_TEXTCALLBACK);
+				_r_ctrl_settiptext (htip, hwnd, IDC_NEXT_BTN, L"NEXT!");
 			}
 
 			// display log information
@@ -981,9 +936,11 @@ INT_PTR CALLBACK NotificationProc (
 
 			_app_notify_show (hwnd, ptr_log);
 
-			SetEvent (config.hnotify_evt);
+			NtSetEvent (config.hnotify_evt, NULL);
 
 			_r_obj_dereference (ptr_log);
+
+			_r_theme_initialize (hwnd, _r_theme_isenabled ());
 
 			break;
 		}
@@ -994,13 +951,15 @@ INT_PTR CALLBACK NotificationProc (
 			break;
 		}
 
+		case WM_DESTROY:
+		{
+			_r_window_saveposition (hwnd, L"notification");
+			break;
+		}
+
 		case WM_NCDESTROY:
 		{
-			InterlockedCompareExchangePointer (
-				&config.hnotification,
-				NULL,
-				config.hnotification
-			);
+			_InterlockedCompareExchangePointer (&config.hnotification, NULL, config.hnotification);
 
 			_app_notify_destroy (hwnd);
 
@@ -1015,9 +974,10 @@ INT_PTR CALLBACK NotificationProc (
 				break;
 
 			_r_ctrl_enable (hwnd, IDC_RULES_BTN, TRUE);
+			_r_ctrl_enable (hwnd, IDC_KILLPROCESS_BTN, TRUE);
 			_r_ctrl_enable (hwnd, IDC_ALLOW_BTN, TRUE);
 			_r_ctrl_enable (hwnd, IDC_BLOCK_BTN, TRUE);
-			_r_ctrl_enable (hwnd, IDC_LATER_BTN, TRUE);
+			_r_ctrl_enable (hwnd, IDC_NEXT_BTN, TRUE);
 
 			break;
 		}
@@ -1054,16 +1014,11 @@ INT_PTR CALLBACK NotificationProc (
 			if (!hdc)
 				break;
 
-			_r_dc_drawwindow (hdc, hwnd, 0, TRUE);
+			_r_dc_drawwindow (hdc, hwnd, TRUE);
 
 			EndPaint (hwnd, &ps);
 
 			break;
-		}
-
-		case WM_ERASEBKGND:
-		{
-			return TRUE;
 		}
 
 		case WM_CTLCOLORDLG:
@@ -1131,14 +1086,7 @@ INT_PTR CALLBACK NotificationProc (
 					_r_calc_rectheight (&draw_info->rcItem)
 				);
 
-				DrawTextEx (
-					draw_info->hDC,
-					string->buffer,
-					(INT)(INT_PTR)_r_str_getlength2 (string),
-					&rect,
-					DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOCLIP | DT_NOPREFIX,
-					NULL
-				);
+				_r_dc_drawtext (NULL, draw_info->hDC, &string->sr, &rect, 0, 0, DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOCLIP | DT_NOPREFIX, 0);
 
 				_r_obj_dereference (string);
 			}
@@ -1169,7 +1117,8 @@ INT_PTR CALLBACK NotificationProc (
 				);
 			}
 
-			SetWindowLongPtr (hwnd, DWLP_MSGRESULT, TRUE);
+			SetWindowLongPtrW (hwnd, DWLP_MSGRESULT, TRUE);
+
 			return TRUE;
 		}
 
@@ -1181,9 +1130,10 @@ INT_PTR CALLBACK NotificationProc (
 
 			if (ctrl_id == IDC_FILE_TEXT)
 			{
-				SetCursor (LoadCursor (NULL, IDC_HAND));
+				SetCursor (LoadCursorW (NULL, IDC_HAND));
 
-				SetWindowLongPtr (hwnd, DWLP_MSGRESULT, TRUE);
+				SetWindowLongPtrW (hwnd, DWLP_MSGRESULT, TRUE);
+
 				return TRUE;
 			}
 
@@ -1192,7 +1142,7 @@ INT_PTR CALLBACK NotificationProc (
 
 		case WM_LBUTTONDOWN:
 		{
-			PostMessage (hwnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
+			_r_wnd_sendmessage (hwnd, 0, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
 			break;
 		}
 
@@ -1201,14 +1151,14 @@ INT_PTR CALLBACK NotificationProc (
 		case WM_CAPTURECHANGED:
 		{
 			HCURSOR hcursor;
-			LONG_PTR exstyle;
+			LONG_PTR ex_style;
 
-			exstyle = _r_wnd_getstyle_ex (hwnd);
+			ex_style = _r_wnd_getstyle_ex (hwnd);
 
-			if (!(exstyle & WS_EX_LAYERED))
-				_r_wnd_setstyle_ex (hwnd, exstyle | WS_EX_LAYERED);
+			if (!(ex_style & WS_EX_LAYERED))
+				_r_wnd_setstyle_ex (hwnd, WS_EX_LAYERED, WS_EX_LAYERED);
 
-			hcursor = LoadCursor (NULL, (msg == WM_ENTERSIZEMOVE) ? IDC_SIZEALL : IDC_ARROW);
+			hcursor = LoadCursorW (NULL, (msg == WM_ENTERSIZEMOVE) ? IDC_SIZEALL : IDC_ARROW);
 
 			SetLayeredWindowAttributes (hwnd, 0, (msg == WM_ENTERSIZEMOVE) ? 150 : 255, LWA_ALPHA);
 			SetCursor (hcursor);
@@ -1280,15 +1230,14 @@ INT_PTR CALLBACK NotificationProc (
 
 				case TTN_GETDISPINFO:
 				{
-					LPNMTTDISPINFO lpnmdi;
-
+					LPNMTTDISPINFOW lpnmdi;
 					WCHAR buffer[1024] = {0};
 					PR_STRING string;
 					ULONG_PTR app_hash;
 					INT ctrl_id;
-					INT listview_id;
+					INT listview_id = 0;
 
-					lpnmdi = (LPNMTTDISPINFO)lparam;
+					lpnmdi = (LPNMTTDISPINFOW)lparam;
 
 					if ((lpnmdi->uFlags & TTF_IDISHWND) == 0)
 						break;
@@ -1306,41 +1255,26 @@ INT_PTR CALLBACK NotificationProc (
 							if (string)
 							{
 								_r_str_copy (buffer, RTL_NUMBER_OF (buffer), string->buffer);
+
 								_r_obj_dereference (string);
 							}
 						}
 					}
 					else if (ctrl_id == IDC_RULES_BTN)
 					{
-						_r_str_copy (
-							buffer,
-							RTL_NUMBER_OF (buffer),
-							_r_locale_getstring (IDS_NOTIFY_TOOLTIP)
-						);
+						_r_str_copy (buffer, RTL_NUMBER_OF (buffer), _r_locale_getstring (IDS_NOTIFY_TOOLTIP));
 					}
 					else if (ctrl_id == IDC_ALLOW_BTN)
 					{
-						_r_str_copy (
-							buffer,
-							RTL_NUMBER_OF (buffer),
-							_r_locale_getstring (IDS_ACTION_ALLOW_HINT)
-						);
+						_r_str_copy (buffer, RTL_NUMBER_OF (buffer), _r_locale_getstring (IDS_ACTION_ALLOW_HINT));
 					}
 					else if (ctrl_id == IDC_BLOCK_BTN)
 					{
-						_r_str_copy (
-							buffer,
-							RTL_NUMBER_OF (buffer),
-							_r_locale_getstring (IDS_ACTION_BLOCK_HINT)
-						);
+						_r_str_copy (buffer, RTL_NUMBER_OF (buffer), _r_locale_getstring (IDS_ACTION_BLOCK_HINT));
 					}
-					else if (ctrl_id == IDC_LATER_BTN)
+					else if (ctrl_id == IDC_KILLPROCESS_BTN)
 					{
-						_r_str_copy (
-							buffer,
-							RTL_NUMBER_OF (buffer),
-							_r_locale_getstring (IDS_ACTION_LATER_HINT)
-						);
+						_r_str_copy (buffer, RTL_NUMBER_OF (buffer), _r_locale_getstring (IDS_ACTION_TERMINATE_HINT));
 					}
 					else
 					{
@@ -1349,6 +1283,7 @@ INT_PTR CALLBACK NotificationProc (
 						if (string)
 						{
 							_r_str_copy (buffer, RTL_NUMBER_OF (buffer), string->buffer);
+
 							_r_obj_dereference (string);
 						}
 					}
@@ -1369,8 +1304,7 @@ INT_PTR CALLBACK NotificationProc (
 
 			ctrl_id = LOWORD (wparam);
 
-			if (ctrl_id >= IDX_RULES_SPECIAL &&
-				ctrl_id <= IDX_RULES_SPECIAL + (INT)(INT_PTR)_r_obj_getlistsize (rules_list) + 1)
+			if (ctrl_id >= IDX_RULES_SPECIAL && ctrl_id <= IDX_RULES_SPECIAL + (INT)(INT_PTR)_r_obj_getlistsize (rules_list) + 1)
 			{
 				HANDLE hengine;
 				PR_LIST rules;
@@ -1378,7 +1312,7 @@ INT_PTR CALLBACK NotificationProc (
 				PITEM_APP ptr_app;
 				PITEM_LOG ptr_log;
 				PR_STRING rule;
-				SIZE_T rule_idx;
+				ULONG_PTR rule_idx;
 				ULONG_PTR app_hash;
 				BOOLEAN is_remove;
 
@@ -1388,7 +1322,7 @@ INT_PTR CALLBACK NotificationProc (
 				if (!ptr_app)
 					return FALSE;
 
-				rule_idx = (SIZE_T)ctrl_id - IDX_RULES_SPECIAL;
+				rule_idx = (ULONG_PTR)ctrl_id - IDX_RULES_SPECIAL;
 				ptr_rule = _app_getrulebyid (rule_idx);
 
 				if (!ptr_rule)
@@ -1397,27 +1331,12 @@ INT_PTR CALLBACK NotificationProc (
 
 					if (ptr_log)
 					{
-						rule = _app_formataddress (
-							ptr_log->af,
-							0,
-							&ptr_log->remote_addr,
-							ptr_log->remote_port,
-							FMTADDR_AS_RULE
-						);
+						rule = _app_formataddress (ptr_log->af, 0, &ptr_log->remote_addr, ptr_log->remote_port, FMTADDR_AS_RULE);
 
-						ptr_rule = _app_addrule (
-							NULL,
-							NULL,
-							NULL,
-							FWP_DIRECTION_OUTBOUND,
-							ptr_log->protocol,
-							ptr_log->af
-						);
+						ptr_rule = _app_addrule (NULL, NULL, NULL, FWP_DIRECTION_OUTBOUND, FWP_ACTION_PERMIT, ptr_log->protocol, ptr_log->af);
 
-						ptr_rule->name = _r_obj_createstring2 (rule);
-						ptr_rule->rule_remote = _r_obj_createstring2 (rule);
-
-						ptr_rule->action = FWP_ACTION_PERMIT;
+						ptr_rule->name = _r_obj_createstring2 (&rule->sr);
+						ptr_rule->rule_remote = _r_obj_createstring2 (&rule->sr);
 
 						_app_ruleenable (ptr_rule, TRUE, FALSE);
 
@@ -1434,7 +1353,7 @@ INT_PTR CALLBACK NotificationProc (
 							_app_listview_addruleitem (_r_app_gethwnd (), ptr_rule, rule_idx, TRUE);
 							_app_listview_updateby_id (_r_app_gethwnd (), DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE);
 
-							_app_profile_save ();
+							_app_profile_save (hwnd);
 						}
 					}
 
@@ -1447,14 +1366,13 @@ INT_PTR CALLBACK NotificationProc (
 
 				if (!(ptr_rule->is_forservices && _app_issystemhash (app_hash)))
 				{
-					is_remove = ptr_rule->is_enabled &&
-						_r_obj_findhashtable (ptr_rule->apps, app_hash);
+					is_remove = ptr_rule->is_enabled && _r_obj_findhashtable (ptr_rule->apps, app_hash);
 
 					if (is_remove)
 					{
 						_r_obj_removehashtableitem (ptr_rule->apps, app_hash);
 
-						if (_r_obj_ishashtableempty (ptr_rule->apps))
+						if (_r_obj_isempty (ptr_rule->apps))
 							_app_ruleenable (ptr_rule, FALSE, TRUE);
 					}
 					else
@@ -1483,30 +1401,25 @@ INT_PTR CALLBACK NotificationProc (
 						}
 					}
 
-					_app_listview_updateby_id (
-						_r_app_gethwnd (),
-						DATA_LISTVIEW_CURRENT,
-						PR_UPDATE_TYPE
-					);
+					_app_listview_updateby_id (_r_app_gethwnd (), DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE);
 
-					_r_obj_dereference (ptr_app);
 					_r_obj_dereference (ptr_rule);
+					_r_obj_dereference (ptr_app);
 
-					_app_profile_save ();
+					_app_profile_save (hwnd);
 				}
 
 				return FALSE;
 			}
-			else if (ctrl_id >= IDX_TIMER &&
-					 ctrl_id <= (IDX_TIMER + (RTL_NUMBER_OF (timer_array) - 1)))
+			else if (ctrl_id >= IDX_TIMER && ctrl_id <= (IDX_TIMER + (RTL_NUMBER_OF (timer_array) - 1)))
 			{
-				SIZE_T timer_idx;
+				ULONG_PTR timer_idx;
 				LONG64 seconds;
 
 				if (!_r_ctrl_isenabled (hwnd, IDC_ALLOW_BTN))
 					return FALSE;
 
-				timer_idx = (SIZE_T)ctrl_id - IDX_TIMER;
+				timer_idx = (ULONG_PTR)ctrl_id - IDX_TIMER;
 				seconds = timer_array[timer_idx];
 
 				_app_notify_command (hwnd, IDC_ALLOW_BTN, seconds);
@@ -1560,10 +1473,19 @@ INT_PTR CALLBACK NotificationProc (
 
 				case IDC_ALLOW_BTN:
 				case IDC_BLOCK_BTN:
-				case IDC_LATER_BTN:
+				case IDC_NEXT_BTN:
 				{
 					if (_r_ctrl_isenabled (hwnd, ctrl_id))
 						_app_notify_command (hwnd, ctrl_id, 0);
+
+					break;
+				}
+
+				case IDC_KILLPROCESS_BTN:
+				{
+					_app_notify_killprocess (hwnd);
+
+					_r_ctrl_enable (hwnd, ctrl_id, FALSE);
 
 					break;
 				}
@@ -1578,7 +1500,7 @@ INT_PTR CALLBACK NotificationProc (
 					PR_STRING rule_name;
 					PR_STRING rule_string;
 					ULONG_PTR app_hash;
-					SIZE_T rule_idx;
+					ULONG_PTR rule_idx;
 
 					app_hash = _app_notify_getapp_id (hwnd);
 					ptr_log = _app_notify_getobject (app_hash);
@@ -1592,33 +1514,17 @@ INT_PTR CALLBACK NotificationProc (
 					if (!ptr_app)
 					{
 						_r_obj_dereference (ptr_log);
+
 						break;
 					}
 
 					app_name = _app_getappdisplayname (ptr_app, TRUE);
 
-					rule_string = _app_formataddress (
-						ptr_log->af,
-						0,
-						&ptr_log->remote_addr,
-						ptr_log->remote_port,
-						FMTADDR_AS_RULE
-					);
+					rule_string = _app_formataddress (ptr_log->af, 0, &ptr_log->remote_addr, ptr_log->remote_port, FMTADDR_AS_RULE);
 
-					rule_name = _r_format_string (
-						L"%s - %s",
-						_r_obj_getstring (app_name),
-						_r_obj_getstring (rule_string)
-					);
+					rule_name = _r_format_string (L"%s - %s", _r_obj_getstring (app_name), _r_obj_getstring (rule_string));
 
-					ptr_rule = _app_addrule (
-						rule_name,
-						rule_string,
-						NULL,
-						ptr_log->direction,
-						ptr_log->protocol,
-						ptr_log->af
-					);
+					ptr_rule = _app_addrule (rule_name, rule_string, NULL, ptr_log->direction, FWP_ACTION_PERMIT, ptr_log->protocol, ptr_log->af);
 
 					_r_obj_addhashtableitem (ptr_rule->apps, app_hash, NULL);
 
@@ -1640,7 +1546,7 @@ INT_PTR CALLBACK NotificationProc (
 
 						_app_listview_updateby_id (_r_app_gethwnd (), DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE);
 
-						_app_profile_save ();
+						_app_profile_save (hwnd);
 
 						_app_editor_deletewindow (context);
 					}
@@ -1664,7 +1570,9 @@ INT_PTR CALLBACK NotificationProc (
 				case IDM_COPY: // ctrl+c
 				case IDM_SELECT_ALL: // ctrl+a
 				{
-					WCHAR class_name[128];
+					static R_STRINGREF sr = PR_STRINGREF_INIT (WC_EDITW);
+
+					PR_STRING class_name;
 					HWND hedit;
 
 					hedit = GetFocus ();
@@ -1672,22 +1580,24 @@ INT_PTR CALLBACK NotificationProc (
 					if (!hedit)
 						break;
 
-					if (!GetClassName (hedit, class_name, RTL_NUMBER_OF (class_name)))
+					class_name = _r_wnd_getclassname (hedit);
+
+					if (!class_name)
 						break;
 
-					if (_r_str_compare (class_name, WC_EDIT) != 0)
-						break;
+					if (_r_str_isequal (&class_name->sr, &sr, TRUE))
+					{
+						if (ctrl_id == IDM_COPY)
+						{
+							_r_wnd_sendmessage (hedit, 0, WM_COPY, 0, 0); // edit control hotkey for "ctrl+c" (issue #597)
+						}
+						else if (ctrl_id == IDM_SELECT_ALL)
+						{
+							_r_ctrl_setselection (hedit, 0, MAKELPARAM (0, -1)); // edit control hotkey for "ctrl+a"
+						}
+					}
 
-					// edit control hotkey for "ctrl+c" (issue #597)
-					if (ctrl_id == IDM_COPY)
-					{
-						SendMessage (hedit, WM_COPY, 0, 0);
-					}
-					// edit control hotkey for "ctrl+a"
-					else if (ctrl_id == IDM_SELECT_ALL)
-					{
-						SendMessage (hedit, EM_SETSEL, 0, (LPARAM)-1);
-					}
+					_r_obj_dereference (class_name);
 
 					break;
 				}

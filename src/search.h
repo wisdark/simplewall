@@ -1,59 +1,83 @@
 // simplewall
 // Copyright (c) 2012-2021 dmex
-// Copyright (c) 2021-2023 Henry++
+// Copyright (c) 2021-2024 Henry++
 
 #pragma once
 
-typedef struct _EDIT_CONTEXT
+typedef struct _SEARCH_CONTEXT
 {
+	RECT rect;
+	HICON hicon_light;
+	HICON hicon_dark;
+	HBITMAP old_bitmap;
+	HBITMAP hbitmap;
+	HBRUSH dc_brush;
 	HWND hwnd;
-	HICON hicon;
+	HDC hdc;
 
-	WNDPROC def_window_proc;
+	WNDPROC wnd_proc;
 
 	union
 	{
 		ULONG flags;
+
 		struct
 		{
 			ULONG is_hot : 1;
 			ULONG is_pushed : 1;
-			ULONG spare_bits : 30;
+			ULONG is_mouseactive : 1;
+			ULONG spare_bits : 29;
 		};
 	};
+
+	LONG dpi_value;
 
 	LONG image_width;
 	LONG image_height;
 
-	INT cx_size;
+	INT cx_width;
 	INT cx_border;
-} EDIT_CONTEXT, *PEDIT_CONTEXT;
-
-VOID _app_search_initializetheme (
-	_Inout_ PEDIT_CONTEXT context
-);
-
-VOID _app_search_destroytheme (
-	_Inout_ PEDIT_CONTEXT context
-);
+} SEARCH_CONTEXT, *PSEARCH_CONTEXT;
 
 VOID _app_search_initialize (
+	_Inout_ PSEARCH_CONTEXT context
+);
+
+VOID _app_search_create (
 	_In_ HWND hwnd
+);
+
+VOID _app_search_initializeimages (
+	_In_ PSEARCH_CONTEXT context,
+	_In_ HWND hwnd
+);
+
+VOID _app_search_themechanged (
+	_In_ HWND hwnd,
+	_In_ PSEARCH_CONTEXT context
 );
 
 VOID _app_search_setvisible (
 	_In_ HWND hwnd,
-	_In_ HWND hsearch
+	_In_ HWND hsearch,
+	_In_ LONG dpi_value
+);
+
+VOID _app_search_drawwindow (
+	_Inout_ PSEARCH_CONTEXT context,
+	_In_ LPCRECT wnd_rect
 );
 
 VOID _app_search_drawbutton (
-	_Inout_ PEDIT_CONTEXT context,
-	_In_ LPCRECT button_rect
+	_Inout_ PSEARCH_CONTEXT context,
+	_In_ HWND hwnd,
+	_In_ LPCRECT wnd_rect
 );
 
 VOID _app_search_getbuttonrect (
-	_In_ PEDIT_CONTEXT context,
-	_Inout_ PRECT rect
+	_In_ PSEARCH_CONTEXT context,
+	_In_ LPCRECT wnd_rect,
+	_Out_ PRECT btn_rect
 );
 
 BOOLEAN _app_search_applyfiltercallback (
