@@ -425,8 +425,8 @@ BOOLEAN _app_getappinfoparam2 (
 	_In_ ULONG_PTR app_hash,
 	_In_opt_ INT listview_id,
 	_In_ ENUM_INFO_DATA2 info_data,
-	_Out_writes_bytes_all_ (size) PVOID buffer,
-	_In_ ULONG_PTR size
+	_Out_writes_bytes_all_ (length) PVOID buffer,
+	_In_ ULONG_PTR length
 )
 {
 	PITEM_APP_INFO ptr_app_info;
@@ -439,7 +439,7 @@ BOOLEAN _app_getappinfoparam2 (
 		{
 			LONG icon_id = 0;
 
-			if (size != sizeof (LONG))
+			if (length != sizeof (LONG))
 			{
 				if (ptr_app_info)
 					_r_obj_dereference (ptr_app_info);
@@ -455,7 +455,7 @@ BOOLEAN _app_getappinfoparam2 (
 
 			if (icon_id)
 			{
-				RtlCopyMemory (buffer, &icon_id, size);
+				RtlCopyMemory (buffer, &icon_id, length);
 
 				if (ptr_app_info)
 					_r_obj_dereference (ptr_app_info);
@@ -470,7 +470,7 @@ BOOLEAN _app_getappinfoparam2 (
 		{
 			PVOID ptr;
 
-			if (size != sizeof (PVOID))
+			if (length != sizeof (PVOID))
 			{
 				if (ptr_app_info)
 					_r_obj_dereference (ptr_app_info);
@@ -482,7 +482,7 @@ BOOLEAN _app_getappinfoparam2 (
 			{
 				ptr = _r_obj_reference (ptr_app_info->signature_info);
 
-				RtlCopyMemory (buffer, &ptr, size);
+				RtlCopyMemory (buffer, &ptr, length);
 
 				_r_obj_dereference (ptr_app_info);
 
@@ -496,7 +496,7 @@ BOOLEAN _app_getappinfoparam2 (
 		{
 			PVOID ptr;
 
-			if (size != sizeof (PVOID))
+			if (length != sizeof (PVOID))
 			{
 				if (ptr_app_info)
 					_r_obj_dereference (ptr_app_info);
@@ -508,7 +508,7 @@ BOOLEAN _app_getappinfoparam2 (
 			{
 				ptr = _r_obj_reference (ptr_app_info->version_info);
 
-				RtlCopyMemory (buffer, &ptr, size);
+				RtlCopyMemory (buffer, &ptr, length);
 
 				_r_obj_dereference (ptr_app_info);
 
@@ -546,7 +546,7 @@ BOOLEAN _app_isappvalidbinary (
 	_In_opt_ PR_STRING path
 )
 {
-	static R_STRINGREF valid_exts = PR_STRINGREF_INIT (L".exe");
+	R_STRINGREF valid_exts = PR_STRINGREF_INIT (L".exe");
 
 	if (!path)
 		return FALSE;
@@ -584,34 +584,34 @@ PR_STRING _app_getappdisplayname (
 {
 	if (ptr_app->app_hash == config.ntoskrnl_hash)
 	{
-		if (ptr_app->original_path)
+		if (!_r_obj_isstringempty (ptr_app->original_path))
 			return _r_obj_reference (ptr_app->original_path);
 	}
 
 	if (ptr_app->type == DATA_APP_SERVICE)
 	{
-		if (ptr_app->original_path)
+		if (!_r_obj_isstringempty (ptr_app->original_path))
 			return _r_obj_reference (ptr_app->original_path);
 	}
 	else if (ptr_app->type == DATA_APP_UWP)
 	{
-		if (ptr_app->display_name)
+		if (!_r_obj_isstringempty (ptr_app->display_name))
 			return _r_obj_reference (ptr_app->display_name);
 
-		if (ptr_app->real_path)
+		if (!_r_obj_isstringempty (ptr_app->real_path))
 			return _r_obj_reference (ptr_app->real_path);
 
-		if (ptr_app->original_path)
+		if (!_r_obj_isstringempty (ptr_app->original_path))
 			return _r_obj_reference (ptr_app->original_path);
 	}
 
 	if (is_shortened || _r_config_getboolean (L"ShowFilenames", TRUE))
 	{
-		if (ptr_app->short_name)
+		if (!_r_obj_isstringempty (ptr_app->short_name))
 			return _r_obj_reference (ptr_app->short_name);
 	}
 
-	if (ptr_app->real_path)
+	if (!_r_obj_isstringempty (ptr_app->real_path))
 		return _r_obj_reference (ptr_app->real_path);
 
 	return NULL;
@@ -673,17 +673,17 @@ BOOLEAN _app_calculatefilehash (
 	static R_INITONCE init_once = PR_INITONCE_INIT;
 	static CCAHFFH2 _CryptCATAdminCalcHashFromFileHandle2 = NULL;
 	static CCAAC2 _CryptCATAdminAcquireContext2 = NULL;
-	const GUID DriverActionVerify = DRIVER_ACTION_VERIFY;
 
+	GUID DriverActionVerify = DRIVER_ACTION_VERIFY;
 	HCATADMIN hcat_admin;
 	PVOID hwintrust;
 	PBYTE file_hash;
-	ULONG file_hash_length;
+	ULONG file_hash_length = 32;
 	NTSTATUS status;
 
 	if (_r_initonce_begin (&init_once))
 	{
-		status = _r_sys_loadlibrary (L"wintrust.dll", 0, &hwintrust);
+		status = _r_sys_loadlibrary2 (L"wintrust.dll", 0, &hwintrust);
 
 		if (NT_SUCCESS (status))
 		{
@@ -707,7 +707,6 @@ BOOLEAN _app_calculatefilehash (
 			return FALSE;
 	}
 
-	file_hash_length = 32;
 	file_hash = _r_mem_allocate (file_hash_length);
 
 	if (_CryptCATAdminCalcHashFromFileHandle2)
@@ -719,6 +718,7 @@ BOOLEAN _app_calculatefilehash (
 			if (!_CryptCATAdminCalcHashFromFileHandle2 (hcat_admin, hfile, &file_hash_length, file_hash, 0))
 			{
 				CryptCATAdminReleaseContext (hcat_admin, 0);
+
 				_r_mem_free (file_hash);
 
 				return FALSE;
@@ -734,6 +734,7 @@ BOOLEAN _app_calculatefilehash (
 			if (!CryptCATAdminCalcHashFromFileHandle (hfile, &file_hash_length, file_hash, 0))
 			{
 				CryptCATAdminReleaseContext (hcat_admin, 0);
+
 				_r_mem_free (file_hash);
 
 				return FALSE;
@@ -784,7 +785,7 @@ PR_STRING _app_verifygetstring (
 
 				CertGetNameStringW (prov_cert->pCert, CERT_NAME_ATTR_TYPE, 0, szOID_COMMON_NAME, string->buffer, length + 1);
 
-				_r_obj_trimstringtonullterminator (&string->sr);
+				_r_str_trimtonullterminator (&string->sr);
 
 				return string;
 			}
@@ -809,17 +810,16 @@ LONG _app_verifyfromfile (
 
 	trust_data.cbStruct = sizeof (trust_data);
 	trust_data.dwUIChoice = WTD_UI_NONE;
+	trust_data.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN;
 	trust_data.pPolicyCallbackData = policy_callback;
 	trust_data.dwUnionChoice = union_choice;
+	trust_data.dwStateAction = WTD_STATEACTION_VERIFY;
+	trust_data.dwProvFlags = WTD_SAFER_FLAG | WTD_DISABLE_MD2_MD4;
+
+	trust_data.pFile = union_data;
 
 	if (union_choice == WTD_CHOICE_CATALOG)
-	{
 		trust_data.pCatalog = union_data;
-	}
-	else
-	{
-		trust_data.pFile = union_data;
-	}
 
 	if (_r_config_getboolean (L"IsOCSPEnabled", FALSE))
 	{
@@ -858,8 +858,7 @@ NTSTATUS _app_verifyfilefromcatalog (
 	_Out_ PR_STRING_PTR signature_string
 )
 {
-	static GUID DriverActionVerify = DRIVER_ACTION_VERIFY;
-
+	GUID DriverActionVerify = DRIVER_ACTION_VERIFY;
 	WINTRUST_CATALOG_INFO catalog_info = {0};
 	DRIVER_VER_INFO ver_info = {0};
 	CATALOG_INFO ci = {0};
@@ -872,7 +871,7 @@ NTSTATUS _app_verifyfilefromcatalog (
 	ULONG file_hash_length;
 	NTSTATUS status;
 
-	status = _r_fs_getsize2 (hfile, NULL, &file_size);
+	status = _r_fs_getsize2 (NULL, hfile, &file_size);
 
 	if (!NT_SUCCESS (status))
 	{
@@ -942,8 +941,7 @@ VOID _app_getfilesignatureinfo (
 	_Inout_ PITEM_APP_INFO ptr_app_info
 )
 {
-	static GUID WinTrustActionGenericVerifyV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-
+	GUID WinTrustActionGenericVerifyV2 = WINTRUST_ACTION_GENERIC_VERIFY_V2;
 	WINTRUST_FILE_INFO file_info = {0};
 	PR_STRING string = NULL;
 	LONG status;
@@ -991,12 +989,12 @@ VOID _app_getfileversioninfo (
 	if (ptr_app_info->version_info)
 		_r_obj_clearreference (&ptr_app_info->version_info);
 
-	status = _r_sys_loadlibraryasresource (ptr_app_info->path->buffer, &hlib);
+	status = _r_sys_loadlibraryasresource (&ptr_app_info->path->sr, &hlib);
 
 	if (!NT_SUCCESS (status))
 		goto CleanupExit;
 
-	status = _r_res_loadresource (hlib, RT_VERSION, MAKEINTRESOURCEW (VS_VERSION_INFO), 0, &ver_block);
+	status = _r_res_loadresource (hlib, RT_VERSION, MAKEINTRESOURCE (VS_VERSION_INFO), 0, &ver_block);
 
 	if (!NT_SUCCESS (status))
 		goto CleanupExit;
@@ -1066,7 +1064,7 @@ CleanupExit:
 	ptr_app_info->version_info = version_string;
 
 	if (hlib)
-		_r_sys_freelibrary (hlib, TRUE);
+		_r_sys_freelibrary (hlib);
 }
 
 PR_STRING _app_getfilehashinfo (
@@ -1217,8 +1215,9 @@ VOID _app_generate_rulescontrol (
 		}
 	}
 
-	_r_menu_additem (hsubmenu, 0, NULL);
-	_r_menu_additem (hsubmenu, IDM_OPENRULESEDITOR, _r_locale_getstring (IDS_OPENRULESEDITOR));
+	_r_str_printf (buffer, RTL_NUMBER_OF (buffer), L"%s...", _r_locale_getstring (IDS_OPENRULESEDITOR));
+
+	_r_menu_additem (hsubmenu, IDM_OPENRULESEDITOR, buffer);
 }
 
 VOID _app_generate_timerscontrol (
@@ -1294,7 +1293,7 @@ BOOLEAN _app_setruletoapp (
 			_app_ruleenable (ptr_rule, FALSE, TRUE);
 	}
 
-	if (item_id != -1)
+	if (item_id != INT_ERROR)
 	{
 		listview_id = _app_listview_getbytype (ptr_rule->type);
 
@@ -1608,7 +1607,7 @@ PR_STRING _app_resolveaddress (
 		return string;
 	}
 
-	status = DnsQuery_W (arpa_string->buffer, DNS_TYPE_PTR, DNS_QUERY_NO_HOSTS_FILE, NULL, &dns_records, NULL);
+	status = DnsQuery_W (arpa_string->buffer, DNS_TYPE_PTR, DNS_QUERY_BYPASS_CACHE | DNS_QUERY_NO_HOSTS_FILE, NULL, &dns_records, NULL);
 
 	if (status == ERROR_SUCCESS)
 	{
@@ -1725,7 +1724,7 @@ NTSTATUS NTAPI _app_timercallback (
 			if (!_app_isappused (ptr_app))
 				continue;
 
-			status = _r_crypt_getfilehash (BCRYPT_SHA256_ALGORITHM, ptr_app->real_path->buffer, NULL, &hash);
+			status = _r_crypt_getfilehash (BCRYPT_SHA256_ALGORITHM, &ptr_app->real_path->sr, NULL, &hash);
 
 			if (NT_SUCCESS (status))
 			{
@@ -1761,6 +1760,9 @@ VOID _app_getfileinformation (
 
 	ptr_app_info = _app_getappinfobyhash2 (app_hash);
 
+	if (_r_obj_isstringempty (path))
+		return;
+
 	if (ptr_app_info)
 	{
 		// all information is already set
@@ -1785,7 +1787,9 @@ VOID _app_getfileinformation (
 		_r_queuedlock_releaseexclusive (&lock_cache_information);
 	}
 
-	_r_workqueue_queueitem (&file_queue, &_app_queue_fileinformation, ptr_app_info);
+	// check for binary path is valid
+	if (_app_isappvalidbinary (path))
+		_r_workqueue_queueitem (&file_queue, &_app_queue_fileinformation, ptr_app_info);
 }
 
 VOID _app_queue_resolver (
@@ -1808,8 +1812,7 @@ VOID _app_queue_resolver (
 }
 
 VOID NTAPI _app_queue_fileinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 )
 {
 	PITEM_APP_INFO ptr_app_info;
@@ -1823,11 +1826,7 @@ VOID NTAPI _app_queue_fileinformation (
 	if (ptr_app_info->is_loaded)
 		return;
 
-	// check for binary path is valid
-	if (!_app_isappvalidbinary (ptr_app_info->path))
-		return;
-
-	status = _r_fs_openfile (ptr_app_info->path->buffer, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE, 0, FALSE, &hfile);
+	status = _r_fs_openfile (&ptr_app_info->path->sr, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE, 0, FALSE, &hfile);
 
 	if (!NT_SUCCESS (status))
 	{
@@ -1848,17 +1847,14 @@ VOID NTAPI _app_queue_fileinformation (
 	_app_getfileversioninfo (ptr_app_info);
 
 	// query sha256 info
-	if (_r_config_getboolean (L"IsHashesEnabled", TRUE))
+	if (_r_config_getboolean (L"IsHashesEnabled", FALSE))
 		_app_getfilehashinfo (hfile, ptr_app_info->app_hash);
 
 	// redraw listview
-	if (!(busy_count % 4)) // lol, hack!!!
+	if (_r_wnd_isvisible (hwnd, FALSE))
 	{
-		if (_r_wnd_isvisible (hwnd, FALSE))
-		{
-			if (ptr_app_info->listview_id == _app_listview_getcurrent (hwnd))
-				_r_listview_redraw (hwnd, ptr_app_info->listview_id);
-		}
+		if (ptr_app_info->listview_id == _app_listview_getcurrent (hwnd))
+			_r_listview_redraw (hwnd, ptr_app_info->listview_id);
 	}
 
 	ptr_app_info->is_loaded = TRUE;
@@ -1869,20 +1865,20 @@ VOID NTAPI _app_queue_fileinformation (
 }
 
 VOID NTAPI _app_queue_notifyinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 )
 {
-	PITEM_CONTEXT context;
 	PITEM_APP_INFO ptr_app_info;
+	PITEM_CONTEXT context;
 	PITEM_LOG ptr_log;
-	PR_STRING address_str;
-	PR_STRING host_str = NULL;
 	PR_STRING signature_str = NULL;
+	PR_STRING host_str = NULL;
 	PR_STRING localized_string;
+	PR_STRING address_str;
 	HANDLE hfile;
 	HICON hicon;
 	HDWP hdefer;
+	ULONG attempts = 6;
 	BOOLEAN is_iconset = FALSE;
 	NTSTATUS status;
 
@@ -1911,12 +1907,11 @@ VOID NTAPI _app_queue_notifyinformation (
 		{
 			if (_app_isappvalidbinary (ptr_app_info->path))
 			{
-				status = _r_fs_openfile (ptr_app_info->path->buffer, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE, 0, FALSE, &hfile);
+				status = _r_fs_openfile (&ptr_app_info->path->sr, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE, 0, FALSE, &hfile);
 
 				if (NT_SUCCESS (status))
 				{
-					if (!ptr_app_info->is_loaded)
-						_app_getfilesignatureinfo (hfile, ptr_app_info);
+					_app_getfilesignatureinfo (hfile, ptr_app_info);
 
 					NtClose (hfile);
 				}
@@ -1945,7 +1940,20 @@ VOID NTAPI _app_queue_notifyinformation (
 				L":"
 			);
 
-			if (!_app_getappinfoparam2 (ptr_log->app_hash, 0, INFO_SIGNATURE_STRING, &signature_str, sizeof (signature_str)))
+			do
+			{
+				if (!_app_getappinfoparam2 (ptr_log->app_hash, 0, INFO_SIGNATURE_STRING, &signature_str, sizeof (signature_str)))
+				{
+					_r_sys_sleep (250);
+				}
+				else
+				{
+					break;
+				}
+			}
+			while (--attempts);
+
+			if (!signature_str)
 				_r_obj_movereference (&signature_str, _r_locale_getstring_ex (IDS_SIGN_UNSIGNED));
 
 			hdefer = BeginDeferWindowPos (2);
@@ -1994,12 +2002,11 @@ VOID NTAPI _app_queue_notifyinformation (
 }
 
 VOID NTAPI _app_queue_resolveinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 )
 {
-	PITEM_CONTEXT context;
 	PITEM_NETWORK ptr_network;
+	PITEM_CONTEXT context;
 	PITEM_LOG ptr_log;
 	BOOLEAN is_resolutionenabled;
 
@@ -2034,13 +2041,10 @@ VOID NTAPI _app_queue_resolveinformation (
 	}
 
 	// redraw listview
-	if (!(busy_count % 4)) // lol, hack!!!
+	if (_r_wnd_isvisible (context->hwnd, FALSE))
 	{
-		if (_r_wnd_isvisible (context->hwnd, FALSE))
-		{
-			if (_app_listview_getcurrent (context->hwnd) == context->listview_id)
-				_r_listview_redraw (context->hwnd, context->listview_id);
-		}
+		if (_app_listview_getcurrent (context->hwnd) == context->listview_id)
+			_r_listview_redraw (context->hwnd, context->listview_id);
 	}
 
 	_r_obj_dereference (context->base_address);
@@ -2051,13 +2055,16 @@ VOID NTAPI _app_queue_resolveinformation (
 BOOLEAN _app_wufixenabled ()
 {
 	WCHAR file_path[256];
+	R_STRINGREF sr;
 
 	if (!_r_config_getboolean (L"IsWUFixEnabled", FALSE))
 		return FALSE;
 
 	_r_str_printf (file_path, RTL_NUMBER_OF (file_path), L"%s\\wusvc.exe", _r_sys_getsystemdirectory ()->buffer);
 
-	if (_r_fs_exists (file_path))
+	_r_obj_initializestringref (&sr, file_path);
+
+	if (_r_fs_exists (&sr))
 		return TRUE;
 
 	return FALSE;
@@ -2071,23 +2078,23 @@ VOID _app_wufixhelper (
 )
 {
 	SERVICE_STATUS svc_status;
-	WCHAR reg_key[128];
 	WCHAR reg_value[128];
-	SC_HANDLE hsvc;
+	WCHAR reg_key[128];
 	PR_STRING image_path;
+	SC_HANDLE hsvc;
 	HANDLE hkey;
 	BOOLEAN is_enabled = FALSE;
 	NTSTATUS status;
 
 	_r_str_printf (reg_key, RTL_NUMBER_OF (reg_key), L"SYSTEM\\CurrentControlSet\\Services\\%s", service_name);
 
-	status = _r_reg_openkey (HKEY_LOCAL_MACHINE, reg_key, KEY_READ | KEY_WRITE, &hkey);
+	status = _r_reg_openkey (HKEY_LOCAL_MACHINE, reg_key, 0, KEY_READ | KEY_WRITE, &hkey);
 
 	if (!NT_SUCCESS (status))
 		return;
 
 	// query service path
-	status = _r_reg_querystring (hkey, L"ImagePath", &image_path);
+	status = _r_reg_querystring (hkey, L"ImagePath", &image_path, NULL);
 
 	if (NT_SUCCESS (status))
 	{
@@ -2133,8 +2140,8 @@ VOID _app_wufixenable (
 	_In_ BOOLEAN is_enable
 )
 {
-	SC_HANDLE hsvcmgr;
 	PR_STRING service_path;
+	SC_HANDLE hsvcmgr;
 	ULONG_PTR app_hash;
 
 	hsvcmgr = OpenSCManagerW (NULL, NULL, SC_MANAGER_CONNECT | SERVICE_START | SERVICE_STOP | SERVICE_QUERY_STATUS);
@@ -2144,12 +2151,12 @@ VOID _app_wufixenable (
 
 	if (is_enable)
 	{
-		if (_r_fs_exists (config.wusvc_path->buffer))
-			_r_fs_deletefile (config.wusvc_path->buffer, NULL);
+		if (_r_fs_exists (&config.wusvc_path->sr))
+			_r_fs_deletefile (&config.wusvc_path->sr, NULL);
 
-		_r_fs_copyfile (config.svchost_path->buffer, config.wusvc_path->buffer, FALSE);
+		_r_fs_copyfile (&config.svchost_path->sr, &config.wusvc_path->sr, FALSE);
 
-		service_path = _r_obj_createstring (config.wusvc_path->buffer);
+		service_path = _r_obj_createstring2 (&config.wusvc_path->sr);
 
 		app_hash = _app_addapplication (hwnd, DATA_UNKNOWN, service_path, NULL, NULL);
 
@@ -2163,17 +2170,17 @@ VOID _app_wufixenable (
 	}
 	else
 	{
-		if (_r_fs_exists (config.wusvc_path->buffer))
+		if (_r_fs_exists (&config.wusvc_path->sr))
 		{
-			app_hash = _r_str_gethash (config.wusvc_path->buffer, TRUE);
+			app_hash = _r_str_gethash2 (&config.wusvc_path->sr, TRUE);
 
 			if (app_hash)
 			{
 				_app_setappinfobyhash (app_hash, INFO_IS_ENABLED, IntToPtr (FALSE));
-				_app_setappinfobyhash (app_hash, INFO_IS_UNDELETABLE, IntToPtr (FALSE));
+				//_app_setappinfobyhash (app_hash, INFO_IS_UNDELETABLE, IntToPtr (FALSE));
 			}
 
-			_r_fs_deletefile (config.wusvc_path->buffer, NULL);
+			_r_fs_deletefile (&config.wusvc_path->sr, NULL);
 		}
 	}
 

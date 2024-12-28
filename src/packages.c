@@ -27,13 +27,12 @@ VOID _app_package_parsepath (
 	_Inout_ PR_STRING_PTR package_root_folder
 )
 {
-	static R_STRINGREF appx_names[] = {
+	R_STRINGREF appx_names[] = {
 		PR_STRINGREF_INIT (L"AppxManifest.xml"),
 		PR_STRINGREF_INIT (L"VSAppxManifest.xml"),
 	};
 
-	static R_STRINGREF separator_sr = PR_STRINGREF_INIT (L"\\");
-
+	R_STRINGREF separator_sr = PR_STRINGREF_INIT (L"\\");
 	R_XML_LIBRARY xml_library = {0};
 	PR_STRING manifest_path = NULL;
 	PR_STRING result_path = NULL;
@@ -48,7 +47,7 @@ VOID _app_package_parsepath (
 	{
 		_r_obj_movereference (&manifest_path, _r_obj_concatstringrefs (3, &path_string->sr, &separator_sr, &appx_names[i]));
 
-		if (_r_fs_exists (manifest_path->buffer))
+		if (_r_fs_exists (&manifest_path->sr))
 		{
 			is_success = TRUE;
 
@@ -78,7 +77,7 @@ VOID _app_package_parsepath (
 
 			_r_obj_movereference (&result_path, _r_obj_concatstringrefs (3, &path_string->sr, &separator_sr, &executable_sr));
 
-			if (_r_fs_exists (result_path->buffer))
+			if (_r_fs_exists (&result_path->sr))
 			{
 				_r_obj_swapreference (package_root_folder, result_path);
 
@@ -105,8 +104,8 @@ VOID _app_package_getpackagebyname (
 )
 {
 	WCHAR buffer[256];
-	PR_STRING display_name = NULL;
 	PR_STRING package_sid_string = NULL;
+	PR_STRING display_name = NULL;
 	PR_STRING real_path = NULL;
 	PR_BYTE package_sid = NULL;
 	PITEM_APP ptr_app;
@@ -117,7 +116,7 @@ VOID _app_package_getpackagebyname (
 
 	_r_str_printf (buffer, RTL_NUMBER_OF (buffer), L"%s\\%s", path, key_name->buffer);
 
-	status = _r_reg_openkey (hroot, buffer, KEY_READ, &hsubkey);
+	status = _r_reg_openkey (hroot, buffer, 0, KEY_READ, &hsubkey);
 
 	if (!NT_SUCCESS (status))
 		goto CleanupExit;
@@ -193,8 +192,8 @@ VOID _app_package_getpackagebysid (
 	WCHAR buffer[256];
 	PR_STRING display_name = NULL;
 	PR_STRING real_path = NULL;
-	PR_STRING moniker = NULL;
 	PR_BYTE package_sid = NULL;
+	PR_STRING moniker = NULL;
 	PITEM_APP ptr_app;
 	HANDLE hsubkey;
 	ULONG_PTR app_hash;
@@ -209,7 +208,7 @@ VOID _app_package_getpackagebysid (
 
 	_r_str_printf (buffer, RTL_NUMBER_OF (buffer), L"%s\\%s", path, key_name->buffer);
 
-	status = _r_reg_openkey (hroot, buffer, KEY_READ, &hsubkey);
+	status = _r_reg_openkey (hroot, buffer, 0, KEY_READ, &hsubkey);
 
 	if (!NT_SUCCESS (status))
 		goto CleanupExit;
@@ -220,7 +219,7 @@ VOID _app_package_getpackagebysid (
 		goto CleanupExit;
 
 	// query package moniker
-	status = _r_reg_querystring (hsubkey, L"Moniker", &moniker);
+	status = _r_reg_querystring (hsubkey, L"Moniker", &moniker, NULL);
 
 	if (!NT_SUCCESS (status))
 		goto CleanupExit;
@@ -271,49 +270,16 @@ CleanupExit:
 		NtClose (hsubkey);
 }
 
-BOOLEAN _app_parse_callback (
-	_In_ HANDLE hroot,
-	_In_ PVOID buffer,
-	_In_opt_ PVOID context
-)
-{
-	PKEY_BASIC_INFORMATION basic_info;
-	PPACKAGE_CONTEXT mycntx;
-	PR_STRING key_name;
-
-	basic_info = buffer;
-
-	if (!context)
-		return FALSE;
-
-	mycntx = context;
-
-	key_name = _r_obj_createstring_ex (basic_info->Name, basic_info->NameLength);
-
-	if (mycntx->is_byname)
-	{
-		_app_package_getpackagebyname (HKEY_CURRENT_USER, mycntx->path, key_name);
-	}
-	else
-	{
-		_app_package_getpackagebysid (HKEY_CURRENT_USER, mycntx->path, key_name);
-	}
-
-	_r_obj_dereference (key_name);
-
-	return TRUE;
-}
-
 NTSTATUS NTAPI _app_package_threadproc (
 	_In_ PVOID arglist
 )
 {
 	IO_STATUS_BLOCK isb;
-	HANDLE hevents[2] = {0};
 	HANDLE hservices_key = NULL;
 	HANDLE hpackages_key = NULL;
 	HANDLE event_handle1 = NULL;
 	HANDLE event_handle2 = NULL;
+	HANDLE hevents[2] = {0};
 	PITEM_APP ptr_app = NULL;
 	HWND hwnd;
 	LONG64 current_time;
@@ -344,18 +310,13 @@ NTSTATUS NTAPI _app_package_threadproc (
 	hevents[0] = event_handle1;
 	hevents[1] = event_handle2;
 
-	status = _r_reg_openkey (HKEY_LOCAL_MACHINE, L"System\\CurrentControlSet\\Services", KEY_NOTIFY, &hservices_key);
+	status = _r_reg_openkey (HKEY_LOCAL_MACHINE, L"System\\CurrentControlSet\\Services", 0, KEY_NOTIFY, &hservices_key);
 
 	if (_r_sys_isosversiongreaterorequal (WINDOWS_8))
 	{
 		flags |= REG_NOTIFY_THREAD_AGNOSTIC;
 
-		_r_reg_openkey (
-			HKEY_CURRENT_USER,
-			L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages",
-			KEY_NOTIFY,
-			&hpackages_key
-		);
+		_r_reg_openkey (HKEY_CURRENT_USER, L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages", 0, KEY_NOTIFY, &hpackages_key);
 	}
 
 	if (NT_SUCCESS (status))
@@ -451,15 +412,15 @@ VOID _app_package_getpackageslist (
 	_In_ HWND hwnd
 )
 {
-	static LPWSTR reg_byname = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages";
-	static LPWSTR reg_bysid = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppContainer\\Mappings";
-
-	PACKAGE_CONTEXT context = {0};
+	LPWSTR reg_byname = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages";
+	LPWSTR reg_bysid = L"Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppContainer\\Mappings";
+	PR_STRING name;
 	HANDLE hkey;
+	ULONG index = 0;
 	NTSTATUS status;
 
 	// query packages by name
-	status = _r_reg_openkey (HKEY_CURRENT_USER, reg_byname, KEY_READ, &hkey);
+	status = _r_reg_openkey (HKEY_CURRENT_USER, reg_byname, 0, KEY_READ, &hkey);
 
 	if (!NT_SUCCESS (status))
 	{
@@ -468,20 +429,25 @@ VOID _app_package_getpackageslist (
 	}
 	else
 	{
-		_r_str_copy (context.path, RTL_NUMBER_OF (context.path), reg_byname);
+		while (TRUE)
+		{
+			status = _r_reg_enumkey (hkey, index, &name, NULL);
 
-		context.is_byname = TRUE;
+			if (!NT_SUCCESS (status))
+				break;
 
-		status = _r_reg_enumkey (hkey, KeyBasicInformation, &_app_parse_callback, &context);
+			_app_package_getpackagebyname (HKEY_CURRENT_USER, reg_byname, name);
 
-		if (!NT_SUCCESS (status))
-			_r_log (LOG_LEVEL_WARNING, NULL, L"_r_reg_enumkey", status, reg_byname);
+			_r_obj_dereference (name);
+
+			index += 1;
+		}
 
 		NtClose (hkey);
 	}
 
 	// query packages by sid
-	status = _r_reg_openkey (HKEY_CURRENT_USER, reg_bysid, KEY_READ, &hkey);
+	status = _r_reg_openkey (HKEY_CURRENT_USER, reg_bysid, 0, KEY_READ, &hkey);
 
 	if (!NT_SUCCESS (status))
 	{
@@ -490,14 +456,21 @@ VOID _app_package_getpackageslist (
 	}
 	else
 	{
-		_r_str_copy (context.path, RTL_NUMBER_OF (context.path), reg_bysid);
+		index = 0;
 
-		context.is_byname = FALSE;
+		while (TRUE)
+		{
+			status = _r_reg_enumkey (hkey, index, &name, NULL);
 
-		status = _r_reg_enumkey (hkey, KeyBasicInformation, &_app_parse_callback, &context);
+			if (!NT_SUCCESS (status))
+				break;
 
-		if (!NT_SUCCESS (status))
-			_r_log (LOG_LEVEL_WARNING, NULL, L"_r_reg_enumkey", status, reg_bysid);
+			_app_package_getpackagebysid (HKEY_CURRENT_USER, reg_bysid, name);
+
+			_r_obj_dereference (name);
+
+			index += 1;
+		}
 
 		NtClose (hkey);
 	}
@@ -512,6 +485,8 @@ VOID _app_package_getserviceslist (
 	LPENUM_SERVICE_STATUS_PROCESS service;
 	SERVICE_NOTIFY notify_context = {0};
 	EXPLICIT_ACCESS ea;
+	R_STRINGREF dummy_filename;
+	PR_STRING converted_path;
 	PR_STRING name_string;
 	PR_STRING service_name;
 	PR_STRING service_path;
@@ -525,13 +500,10 @@ VOID _app_package_getserviceslist (
 	ULONG_PTR app_hash;
 	ULONG service_type = SERVICE_WIN32_OWN_PROCESS | SERVICE_WIN32_SHARE_PROCESS;
 	ULONG service_state = SERVICE_STATE_ALL;
-	ULONG sd_length;
-	R_STRINGREF dummy_filename;
-	R_STRINGREF dummy_argument;
-	PR_STRING converted_path;
 	ULONG services_returned;
 	ULONG return_length;
 	ULONG buffer_size;
+	ULONG sd_length;
 	NTSTATUS status;
 
 	hsvcmgr = OpenSCManagerW (NULL, NULL, SC_MANAGER_CONNECT | SC_MANAGER_ENUMERATE_SERVICE);
@@ -554,11 +526,11 @@ VOID _app_package_getserviceslist (
 	{
 		if (NtLastError () == ERROR_MORE_DATA)
 		{
-			// Set the buffer
+			// set the buffer
 			buffer_size += return_length;
 			buffer = _r_mem_reallocate (buffer, buffer_size);
 
-			// Now query again for services
+			// now query again for services
 			if (!EnumServicesStatusExW (hsvcmgr, SC_ENUM_PROCESS_INFO, service_type, service_state, buffer, buffer_size, &return_length, &services_returned, NULL, NULL))
 			{
 				_r_mem_free (buffer);
@@ -597,7 +569,7 @@ VOID _app_package_getserviceslist (
 
 		service_name = _r_obj_createstring (service->lpServiceName);
 
-		status = _r_reg_openkey (HKEY_LOCAL_MACHINE, general_key, KEY_READ, &hkey);
+		status = _r_reg_openkey (HKEY_LOCAL_MACHINE, general_key, 0, KEY_READ, &hkey);
 
 		if (!NT_SUCCESS (status))
 		{
@@ -622,11 +594,11 @@ VOID _app_package_getserviceslist (
 		}
 
 		// query service path
-		status = _r_reg_querystring (hkey, L"ImagePath", &service_path);
+		status = _r_reg_querystring (hkey, L"ImagePath", &service_path, NULL);
 
 		if (NT_SUCCESS (status))
 		{
-			_r_path_parsecommandlinefuzzy (&service_path->sr, &dummy_filename, &dummy_argument, &converted_path);
+			_r_path_parsecommandlinefuzzy (&service_path->sr, &dummy_filename, NULL, &converted_path);
 
 			if (converted_path)
 			{
@@ -634,7 +606,7 @@ VOID _app_package_getserviceslist (
 			}
 			else
 			{
-				converted_path = _r_path_dospathfromnt (service_path);
+				converted_path = _r_path_dospathfromnt (&service_path->sr);
 
 				if (converted_path)
 					_r_obj_movereference (&service_path, converted_path);

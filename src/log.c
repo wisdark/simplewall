@@ -27,7 +27,7 @@ VOID _app_loginit (
 		return;
 
 	status = _r_fs_createfile (
-		log_path->buffer,
+		&log_path->sr,
 		FILE_OPEN_IF,
 		GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ,
@@ -55,20 +55,18 @@ VOID _app_loginitfile (
 	_In_ HANDLE hfile
 )
 {
-	static BYTE bom[] = {0xFF, 0xFE};
-
+	BYTE bom[] = {0xFF, 0xFE};
 	LARGE_INTEGER file_size;
-	IO_STATUS_BLOCK isb;
 
-	_r_fs_getsize (hfile, NULL, &file_size);
+	_r_fs_getsize (NULL, hfile, &file_size);
 
 	if (!file_size.QuadPart)
 	{
 		// write utf-16 le byte order mask
-		NtWriteFile (hfile, NULL, NULL, NULL, &isb, bom, sizeof (bom), NULL, NULL);
+		_r_fs_writefile (hfile, bom, sizeof (bom));
 
 		// write csv header
-		NtWriteFile (hfile, NULL, NULL, NULL, &isb, SZ_LOG_TITLE, (ULONG)(_r_str_getlength (SZ_LOG_TITLE) * sizeof (WCHAR)), NULL, NULL);
+		_r_fs_writefile (hfile, SZ_LOG_TITLE, (ULONG)(_r_str_getlength (SZ_LOG_TITLE) * sizeof (WCHAR)));
 	}
 	else
 	{
@@ -104,6 +102,7 @@ ULONG_PTR _app_getloghash (
 	return log_hash;
 }
 
+_Ret_maybenull_
 PR_STRING _app_getlogpath ()
 {
 	PR_STRING path;
@@ -113,6 +112,7 @@ PR_STRING _app_getlogpath ()
 	return path;
 }
 
+_Ret_maybenull_
 PR_STRING _app_getlogviewer ()
 {
 	PR_STRING path;
@@ -147,7 +147,7 @@ BOOLEAN _app_logislimitreached (
 	if (!limit)
 		return FALSE;
 
-	_r_fs_getsize2 (hfile, NULL, &file_size);
+	_r_fs_getsize2 (NULL, hfile, &file_size);
 
 	return (file_size >= (_r_calc_kilobytes2bytes64 (limit)));
 }
@@ -170,7 +170,7 @@ VOID _app_logclear (
 	if (!log_path)
 		return;
 
-	_r_fs_deletefile (log_path->buffer, NULL);
+	_r_fs_deletefile (&log_path->sr, NULL);
 
 	_r_obj_dereference (log_path);
 }
@@ -192,13 +192,12 @@ VOID _app_logwrite (
 	_In_ PITEM_LOG ptr_log
 )
 {
-	IO_STATUS_BLOCK isb;
-	PR_STRING date_string;
-	PR_STRING local_port_string;
 	PR_STRING remote_port_string;
+	PR_STRING local_port_string;
 	PR_STRING direction_string;
-	PR_STRING path;
+	PR_STRING date_string;
 	PR_STRING buffer;
+	PR_STRING path;
 	PITEM_APP ptr_app;
 	HANDLE current_handle;
 
@@ -248,7 +247,7 @@ VOID _app_logwrite (
 	if (_app_logislimitreached (current_handle))
 		_app_logclear (current_handle);
 
-	NtWriteFile (current_handle, NULL, NULL, NULL, &isb, buffer->buffer, (ULONG)buffer->length, NULL, NULL);
+	_r_fs_writefile (current_handle, buffer->buffer, (ULONG)buffer->length);
 
 	if (date_string)
 		_r_obj_dereference (date_string);
@@ -318,7 +317,6 @@ VOID _app_logwrite_ui (
 VOID _wfp_logsubscribe (
 	_In_opt_ HWND hwnd,
 	_In_ HANDLE engine_handle
-
 )
 {
 	static R_INITONCE init_once = PR_INITONCE_INIT;
@@ -327,9 +325,10 @@ VOID _wfp_logsubscribe (
 	static FWPMNES2 _FwpmNetEventSubscribe2 = NULL;
 	static FWPMNES1 _FwpmNetEventSubscribe1 = NULL;
 
+	FWPM_NET_EVENT_ENUM_TEMPLATE0 enum_template = {0};
 	FWPM_NET_EVENT_SUBSCRIPTION0 subscription = {0};
-	HANDLE current_handle;
 	HANDLE new_handle = NULL;
+	HANDLE current_handle;
 	PVOID hfwpuclnt;
 	BOOLEAN is_success = FALSE;
 	NTSTATUS status;
@@ -341,7 +340,7 @@ VOID _wfp_logsubscribe (
 
 	if (_r_initonce_begin (&init_once))
 	{
-		status = _r_sys_loadlibrary (L"fwpuclnt.dll", 0, &hfwpuclnt);
+		status = _r_sys_loadlibrary2 (L"fwpuclnt.dll", 0, &hfwpuclnt);
 
 		if (NT_SUCCESS (status))
 		{
@@ -350,23 +349,28 @@ VOID _wfp_logsubscribe (
 			_FwpmNetEventSubscribe2 = _r_sys_getprocaddress (hfwpuclnt, "FwpmNetEventSubscribe2", 0);
 			_FwpmNetEventSubscribe1 = _r_sys_getprocaddress (hfwpuclnt, "FwpmNetEventSubscribe1", 0);
 
-			_r_sys_freelibrary (hfwpuclnt, FALSE);
+			_r_sys_freelibrary (hfwpuclnt);
 		}
 		else
 		{
 			if (hwnd)
+			{
 				_r_show_errormessage (hwnd, L"Could not load \"fwpuclnt.dll\" library!", status, NULL, ET_NATIVE);
-
-			_r_log (LOG_LEVEL_WARNING, NULL, L"_r_sys_loadlibrary", status, L"fwpuclnt.dll");
+			}
+			else
+			{
+				_r_log (LOG_LEVEL_WARNING, NULL, L"_r_sys_loadlibrary", status, L"fwpuclnt.dll");
+			}
 		}
-
-		status = STATUS_FWP_INVALID_PARAMETER; // reset status code!
 
 		_r_initonce_end (&init_once);
 	}
 
+	subscription.enumTemplate = &enum_template;
+	subscription.sessionKey = config.session_key;
+
 	// win10rs5+
-	if (_FwpmNetEventSubscribe4 && !is_success)
+	if (!is_success && _FwpmNetEventSubscribe4)
 	{
 		status = _FwpmNetEventSubscribe4 (engine_handle, &subscription, &_wfp_logcallback4, NULL, &new_handle);
 
@@ -374,7 +378,7 @@ VOID _wfp_logsubscribe (
 	}
 
 	// win10rs4+
-	if (_FwpmNetEventSubscribe3 && !is_success)
+	if (!is_success && _FwpmNetEventSubscribe3)
 	{
 		status = _FwpmNetEventSubscribe3 (engine_handle, &subscription, &_wfp_logcallback3, NULL, &new_handle);
 
@@ -382,7 +386,7 @@ VOID _wfp_logsubscribe (
 	}
 
 	// win10rs1+
-	if (_FwpmNetEventSubscribe2 && !is_success)
+	if (!is_success && _FwpmNetEventSubscribe2)
 	{
 		status = _FwpmNetEventSubscribe2 (engine_handle, &subscription, &_wfp_logcallback2, NULL, &new_handle);
 
@@ -390,7 +394,7 @@ VOID _wfp_logsubscribe (
 	}
 
 	// win8+
-	if (_FwpmNetEventSubscribe1 && !is_success)
+	if (!is_success && _FwpmNetEventSubscribe1)
 	{
 		status = _FwpmNetEventSubscribe1 (engine_handle, &subscription, &_wfp_logcallback1, NULL, &new_handle);
 
@@ -407,12 +411,14 @@ VOID _wfp_logsubscribe (
 
 	if (!is_success)
 	{
-		if (hwnd)
+		if (hwnd && status != ERROR_PATH_NOT_FOUND)
+		{
 			_r_show_errormessage (hwnd, L"Log subscribe failed. Try again later!", status, NULL, ET_WINDOWS);
-
-		_r_log (LOG_LEVEL_WARNING, NULL, L"FwpmNetEventSubscribe", status, NULL);
-
-		return;
+		}
+		else
+		{
+			_r_log (LOG_LEVEL_WARNING, NULL, L"FwpmNetEventSubscribe", status, NULL);
+		}
 	}
 
 	current_handle = _InterlockedCompareExchangePointer (&config.hnetevent, new_handle, NULL);
@@ -452,7 +458,7 @@ VOID _wfp_logsetoption (
 	_In_ HANDLE engine_handle
 )
 {
-	FWP_VALUE0 val = {0};
+	FWP_VALUE0 val;
 	UINT32 mask = 0;
 	ULONG status;
 
@@ -476,6 +482,8 @@ VOID _wfp_logsetoption (
 	}
 
 	// the filter engine will collect wfp network events that match any supplied key words
+	RtlZeroMemory (&val, sizeof (val));
+
 	val.type = FWP_UINT32;
 	val.uint32 = mask;
 
@@ -484,8 +492,9 @@ VOID _wfp_logsetoption (
 	if (status != ERROR_SUCCESS)
 		_r_log (LOG_LEVEL_WARNING, NULL, L"FwpmEngineSetOption0", status, L"FWPM_ENGINE_NET_EVENT_MATCH_ANY_KEYWORDS");
 
-	// enables the connection monitoring feature and starts logging creation and
-	// deletion events (and notifying any subscribers)
+	// enables the connection monitoring feature and starts logging creation and deletion events (and notifying any subscribers)
+	RtlZeroMemory (&val, sizeof (val));
+
 	val.type = FWP_UINT32;
 	val.uint32 = !_r_config_getboolean (L"IsExcludeIPSecConnections", FALSE);
 
@@ -502,13 +511,13 @@ VOID CALLBACK _wfp_logcallback (
 	HANDLE engine_handle;
 	PITEM_LOG ptr_log;
 	GUID layer_guid;
-	PR_STRING resolved_path;
 	PR_STRING filter_name = NULL;
+	PR_STRING resolved_path;
 	PR_STRING layer_name;
 	PR_STRING sid_string;
 	PR_STRING path;
-	FWPM_LAYER0 *layer_ptr;
 	FWPM_FILTER0 *filter_ptr;
+	FWPM_LAYER0 *layer_ptr;
 	UINT8 filter_weight = 0;
 	BOOLEAN is_myprovider = FALSE;
 	NTSTATUS status;
@@ -520,9 +529,6 @@ VOID CALLBACK _wfp_logcallback (
 		return;
 
 	engine_handle = _wfp_getenginehandle ();
-
-	if (!engine_handle)
-		return;
 
 	// do not parse when tcp connection has been established, or when non-tcp traffic has been authorized
 	if (FwpmLayerGetById0 (engine_handle, log->layer_id, &layer_ptr) != ERROR_SUCCESS || !layer_ptr)
@@ -611,7 +617,7 @@ VOID CALLBACK _wfp_logcallback (
 	{
 		path = _r_obj_createstring ((LPCWSTR)(log->app_id));
 
-		resolved_path = _r_path_dospathfromnt (path);
+		resolved_path = _r_path_dospathfromnt (&path->sr);
 
 		if (resolved_path)
 			_r_obj_movereference (&path, resolved_path);
@@ -711,7 +717,7 @@ VOID CALLBACK _wfp_logcallback (
 		_r_obj_dereference (sid_string);
 }
 
-BOOLEAN log_struct_to_f (
+FORCEINLINE BOOLEAN log_struct_to_f (
 	_Out_ PITEM_LOG_CALLBACK log,
 	_In_ ULONG version,
 	_In_ LPCVOID event_data
@@ -1332,12 +1338,11 @@ VOID CALLBACK _wfp_logcallback4 (
 }
 
 VOID NTAPI _app_logthread (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 )
 {
-	PITEM_LOG ptr_log;
 	PITEM_APP ptr_app = NULL;
+	PITEM_LOG ptr_log;
 	HWND hwnd;
 	BOOLEAN is_notificationenabled;
 	BOOLEAN is_exludeblocklist;

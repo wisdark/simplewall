@@ -82,7 +82,7 @@ VOID _app_search_initializeimages (
 	status = _r_res_loadimage (
 		_r_sys_getimagebase (),
 		L"PNG",
-		MAKEINTRESOURCEW (IDP_SEARCH_LIGHT),
+		MAKEINTRESOURCE (IDP_SEARCH_LIGHT),
 		&GUID_ContainerFormatPng,
 		context->image_width,
 		context->image_height,
@@ -104,7 +104,7 @@ VOID _app_search_initializeimages (
 	status = _r_res_loadimage (
 		_r_sys_getimagebase (),
 		L"PNG",
-		MAKEINTRESOURCEW (IDP_SEARCH_DARK),
+		MAKEINTRESOURCE (IDP_SEARCH_DARK),
 		&GUID_ContainerFormatPng,
 		context->image_width,
 		context->image_height,
@@ -583,7 +583,7 @@ CleanupExit:
 		_r_obj_dereference (ptr_log);
 
 	if (is_changed)
-		_r_listview_setitem_ex (hwnd, listview_id, item_id, 0, NULL, I_IMAGECALLBACK, I_GROUPIDCALLBACK, 0);
+		_r_listview_setitem (hwnd, listview_id, item_id, 0, NULL, I_IMAGECALLBACK, I_GROUPIDCALLBACK, I_DEFAULT);
 
 	return is_changed;
 }

@@ -201,12 +201,12 @@ NTSTATUS _app_db_openfromfile (
 	if (db_info->bytes)
 		_r_obj_clearreference (&db_info->bytes);
 
-	status = _r_fs_openfile (path->buffer, GENERIC_READ, FILE_SHARE_READ, 0, FALSE, &hfile);
+	status = _r_fs_openfile (&path->sr, GENERIC_READ, FILE_SHARE_READ, 0, FALSE, &hfile);
 
 	if (!NT_SUCCESS (status))
 		return status;
 
-	status = _r_fs_readfile (hfile, &db_info->bytes);
+	status = _r_fs_readbytes (hfile, &db_info->bytes);
 
 	if (!NT_SUCCESS (status))
 	{
@@ -239,14 +239,14 @@ VOID _app_db_parse_app (
 
 	path = _r_xml_getattribute_string (&db_info->xml_library, L"path");
 
-	if (!path)
+	if (_r_obj_isstringempty (path))
 		return;
 
 	// workaround for native paths
 	// https://github.com/henrypp/simplewall/issues/817
 	if (_r_str_isstartswith2 (&path->sr, L"\\device\\", TRUE))
 	{
-		dos_path = _r_path_dospathfromnt (path);
+		dos_path = _r_path_dospathfromnt (&path->sr);
 
 		if (dos_path)
 			_r_obj_movereference (&path, dos_path);
@@ -326,8 +326,8 @@ VOID _app_db_parse_rule (
 )
 {
 	PITEM_RULE_CONFIG ptr_config = NULL;
-	R_STRINGREF first_part;
 	R_STRINGBUILDER sb;
+	R_STRINGREF first_part;
 	R_STRINGREF sr;
 	ULONG_PTR app_hash;
 	PR_STRING rule_name;
@@ -471,7 +471,7 @@ VOID _app_db_parse_rule (
 
 			status = _r_str_environmentexpandstring (NULL, &first_part, &path_string);
 
-			if (!NT_SUCCESS (status))
+			if (status != STATUS_SUCCESS)
 				path_string = _r_obj_createstring2 (&first_part);
 
 			app_hash = _r_str_gethash2 (&path_string->sr, TRUE);
@@ -542,7 +542,9 @@ VOID _app_db_parse_ruleconfig (
 	if (!ptr_config)
 	{
 		_r_queuedlock_acquireexclusive (&lock_rules_config);
+
 		ptr_config = _app_addruleconfigtable (rules_config, rule_hash, rule_name, _r_xml_getattribute_boolean (&db_info->xml_library, L"is_enabled"));
+
 		_r_queuedlock_releaseexclusive (&lock_rules_config);
 
 		if (ptr_config)
@@ -652,10 +654,10 @@ NTSTATUS _app_db_encodebody (
 	_Out_ PR_BYTE_PTR out_buffer
 )
 {
-	PR_BYTE bytes;
-	PR_BYTE new_bytes;
 	PR_BYTE body_bytes;
 	PR_BYTE hash_value;
+	PR_BYTE new_bytes;
+	PR_BYTE bytes;
 	NTSTATUS status;
 
 	*out_buffer = NULL;
@@ -738,7 +740,7 @@ NTSTATUS _app_db_generatebody (
 	_In_ BYTE profile_type,
 	_In_ PR_BYTE hash_value,
 	_In_ PR_BYTE buffer,
-	_Outptr_ PR_BYTE_PTR out_buffer
+	_Out_ PR_BYTE_PTR out_buffer
 )
 {
 	PR_BYTE bytes;
@@ -936,9 +938,9 @@ NTSTATUS _app_db_savetofile (
 	_app_db_save_rule (db_info);
 	_app_db_save_ruleconfig (db_info);
 
-	_r_xml_writewhitespace (&db_info->xml_library, L"\n");
+	_r_xml_writewhitespace (&db_info->xml_library, L"\r\n");
 	_r_xml_writeendelement (&db_info->xml_library);
-	_r_xml_writewhitespace (&db_info->xml_library, L"\n");
+	_r_xml_writewhitespace (&db_info->xml_library, L"\r\n");
 	_r_xml_writeenddocument (&db_info->xml_library);
 
 	status = _app_db_save_streamtofile (db_info, path);
@@ -952,14 +954,13 @@ NTSTATUS _app_db_save_streamtofile (
 	_In_ PR_STRING path
 )
 {
-	IO_STATUS_BLOCK isb;
 	PR_BYTE new_bytes;
 	HANDLE hfile;
 	BYTE profile_type;
 	NTSTATUS status;
 
 	status = _r_fs_createfile (
-		path->buffer,
+		&path->sr,
 		FILE_OVERWRITE_IF,
 		GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -979,7 +980,7 @@ NTSTATUS _app_db_save_streamtofile (
 
 	if (NT_SUCCESS (status))
 	{
-		NtWriteFile (hfile, NULL, NULL, NULL, &isb, new_bytes->buffer, (ULONG)new_bytes->length, NULL, NULL);
+		_r_fs_writefile (hfile, new_bytes->buffer, (ULONG)new_bytes->length);
 
 		_r_obj_dereference (new_bytes);
 	}
@@ -994,7 +995,7 @@ FORCEINLINE VOID _app_db_writeelementstart (
 	_In_ LPCWSTR name
 )
 {
-	_r_xml_writewhitespace (&db_info->xml_library, L"\n\t");
+	_r_xml_writewhitespace (&db_info->xml_library, L"\r\n\t");
 
 	_r_xml_writestartelement (&db_info->xml_library, name);
 }
@@ -1003,7 +1004,7 @@ FORCEINLINE VOID _app_db_writeelementend (
 	_Inout_ PDB_INFORMATION db_info
 )
 {
-	_r_xml_writewhitespace (&db_info->xml_library, L"\n\t");
+	_r_xml_writewhitespace (&db_info->xml_library, L"\r\n\t");
 
 	_r_xml_writeendelement (&db_info->xml_library);
 }
@@ -1031,19 +1032,19 @@ VOID _app_db_save_app (
 		is_usedapp = _app_isappused (ptr_app);
 
 		// do not save unused apps/uwp apps...
-		if (!is_usedapp && !is_keepunusedapps)
+		if (!is_usedapp && (!is_keepunusedapps || (ptr_app->type == DATA_APP_SERVICE || ptr_app->type == DATA_APP_UWP)))
 		{
-			_app_deleteappitem (_r_app_gethwnd (), ptr_app->type, ptr_app->app_hash);
+			//_app_deleteappitem (_r_app_gethwnd (), ptr_app->type, ptr_app->app_hash);
 
 			continue;
 		}
 
-		_r_xml_writewhitespace (&db_info->xml_library, L"\n\t\t");
+		_r_xml_writewhitespace (&db_info->xml_library, L"\r\n\t\t");
 		_r_xml_writestartelement (&db_info->xml_library, L"item");
 
 		_r_xml_setattribute (&db_info->xml_library, L"path", ptr_app->original_path->buffer);
 
-		if (_r_config_getboolean (L"IsHashesEnabled", TRUE) && !_r_obj_isstringempty (ptr_app->hash))
+		if (!_r_obj_isstringempty (ptr_app->hash) && _r_config_getboolean (L"IsHashesEnabled", FALSE))
 			_r_xml_setattribute (&db_info->xml_library, L"hash", ptr_app->hash->buffer);
 
 		if (!_r_obj_isstringempty (ptr_app->comment))
@@ -1095,7 +1096,7 @@ VOID _app_db_save_rule (
 		if (!ptr_rule || ptr_rule->is_readonly || _r_obj_isstringempty (ptr_rule->name))
 			continue;
 
-		_r_xml_writewhitespace (&db_info->xml_library, L"\n\t\t");
+		_r_xml_writewhitespace (&db_info->xml_library, L"\r\n\t\t");
 
 		_r_xml_writestartelement (&db_info->xml_library, L"item");
 
@@ -1157,8 +1158,8 @@ VOID _app_db_save_ruleconfig (
 	PITEM_RULE_CONFIG ptr_config = NULL;
 	PITEM_RULE ptr_rule;
 	PR_STRING apps_string;
-	ULONG_PTR rule_hash;
 	ULONG_PTR enum_key = 0;
+	ULONG_PTR rule_hash;
 	BOOLEAN is_enabled_default;
 
 	_app_db_writeelementstart (db_info, L"rules_config");
@@ -1191,7 +1192,7 @@ VOID _app_db_save_ruleconfig (
 		if (ptr_config->is_enabled == is_enabled_default && !apps_string)
 			continue;
 
-		_r_xml_writewhitespace (&db_info->xml_library, L"\n\t\t");
+		_r_xml_writewhitespace (&db_info->xml_library, L"\r\n\t\t");
 
 		_r_xml_writestartelement (&db_info->xml_library, L"item");
 
@@ -1272,32 +1273,54 @@ PR_STRING _app_db_getdirectionname (
 
 	if (is_localized)
 	{
-		if (direction == FWP_DIRECTION_OUTBOUND)
+		switch (direction)
 		{
-			text = _r_locale_getstring (IDS_DIRECTION_1);
-		}
-		else if (direction == FWP_DIRECTION_INBOUND)
-		{
-			text = _r_locale_getstring (IDS_DIRECTION_2);
-		}
-		else if (direction == FWP_DIRECTION_MAX)
-		{
-			text = _r_locale_getstring (IDS_ANY);
+			case FWP_DIRECTION_OUTBOUND:
+			{
+				text = _r_locale_getstring (IDS_DIRECTION_1);
+
+				break;
+			}
+
+			case FWP_DIRECTION_INBOUND:
+			{
+				text = _r_locale_getstring (IDS_DIRECTION_2);
+
+				break;
+			}
+
+			case FWP_DIRECTION_MAX:
+			{
+				text = _r_locale_getstring (IDS_ANY);
+
+				break;
+			}
 		}
 	}
 	else
 	{
-		if (direction == FWP_DIRECTION_OUTBOUND)
+		switch (direction)
 		{
-			text = SZ_DIRECTION_OUT;
-		}
-		else if (direction == FWP_DIRECTION_INBOUND)
-		{
-			text = SZ_DIRECTION_IN;
-		}
-		else if (direction == FWP_DIRECTION_MAX)
-		{
-			text = SZ_DIRECTION_ANY;
+			case FWP_DIRECTION_OUTBOUND:
+			{
+				text = SZ_DIRECTION_OUT;
+
+				break;
+			}
+
+			case FWP_DIRECTION_INBOUND:
+			{
+				text = SZ_DIRECTION_IN;
+
+				break;
+			}
+
+			case FWP_DIRECTION_MAX:
+			{
+				text = SZ_DIRECTION_ANY;
+
+				break;
+			}
 		}
 	}
 

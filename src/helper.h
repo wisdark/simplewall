@@ -116,8 +116,8 @@ BOOLEAN _app_getappinfoparam2 (
 	_In_ ULONG_PTR app_hash,
 	_In_opt_ INT listview_id,
 	_In_ ENUM_INFO_DATA2 info_data,
-	_Out_writes_bytes_all_ (size) PVOID buffer,
-	_In_ ULONG_PTR size
+	_Out_writes_bytes_all_ (length) PVOID buffer,
+	_In_ ULONG_PTR length
 );
 
 BOOLEAN _app_isappsigned (
@@ -244,18 +244,15 @@ VOID _app_queue_resolver (
 );
 
 VOID NTAPI _app_queue_fileinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 );
 
 VOID NTAPI _app_queue_notifyinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 );
 
 VOID NTAPI _app_queue_resolveinformation (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 );
 
 BOOLEAN _app_wufixenabled ();

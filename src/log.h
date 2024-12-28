@@ -51,8 +51,10 @@ ULONG_PTR _app_getloghash (
 	_In_ PITEM_LOG ptr_log
 );
 
+_Ret_maybenull_
 PR_STRING _app_getlogpath ();
 
+_Ret_maybenull_
 PR_STRING _app_getlogviewer ();
 
 BOOLEAN _app_islogfound (
@@ -128,6 +130,5 @@ VOID CALLBACK _wfp_logcallback4 (
 );
 
 VOID NTAPI _app_logthread (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 );

@@ -91,7 +91,6 @@ typedef enum _ENUM_INFO_DATA2
 #define PROC_SYSTEM_PID 4
 #define PROC_SYSTEM_NAME L"System"
 
-#define PATH_NTOSKRNL L"\\ntoskrnl.exe"
 #define PATH_SVCHOST L"\\svchost.exe"
 #define PATH_WUSVC L"\\wusvc.exe"
 
@@ -187,6 +186,8 @@ typedef struct _STATIC_DATA
 	WCHAR windows_dir_buffer[256];
 	R_STRINGREF windows_dir;
 
+	GUID session_key;
+
 	PR_STRING search_string;
 
 	PR_STRING my_path;
@@ -275,11 +276,11 @@ typedef struct _ITEM_APP
 
 	PTP_TIMER htimer;
 
+	ULONG_PTR app_hash;
+
 	LONG64 timestamp;
 	LONG64 timer;
 	LONG64 last_notify;
-
-	ULONG_PTR app_hash;
 
 	ENUM_TYPE_DATA type;
 
@@ -297,10 +298,10 @@ typedef struct _ITEM_APP
 
 typedef struct _ITEM_APP_INFO
 {
-	PR_STRING path;
-
 	PR_STRING signature_info;
 	PR_STRING version_info;
+
+	PR_STRING path;
 
 	ULONG_PTR app_hash;
 
@@ -483,12 +484,6 @@ typedef struct _ITEM_CONTEXT
 	} DUMMYUNIONNAME;
 } ITEM_CONTEXT, *PITEM_CONTEXT;
 
-typedef struct _PACKAGE_CONTEXT
-{
-	WCHAR path[128];
-	BOOLEAN is_byname;
-} PACKAGE_CONTEXT, *PPACKAGE_CONTEXT;
-
 typedef struct _ITEM_COLOR
 {
 	PR_STRING config_name;
@@ -560,3 +555,9 @@ typedef struct _ITEM_LOG_CALLBACK
 	BOOLEAN is_allow;
 	BOOLEAN is_loopback;
 } ITEM_LOG_CALLBACK, *PITEM_LOG_CALLBACK;
+
+typedef struct _ITEM_TAB_CONTEXT
+{
+	INT listview_id;
+	INT locale_id;
+} ITEM_TAB_CONTEXT, *PITEM_TAB_CONTEXT;

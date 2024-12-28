@@ -7,26 +7,26 @@ INT _app_listview_getcurrent (
 	_In_ HWND hwnd
 )
 {
-	INT listview_id;
+	PITEM_TAB_CONTEXT context;
 
-	listview_id = _app_listview_getbytab (hwnd, -1);
+	context = _app_listview_getbytab (hwnd, INT_ERROR);
 
-	return listview_id;
+	return context->listview_id;
 }
 
-INT _app_listview_getbytab (
+PITEM_TAB_CONTEXT _app_listview_getbytab (
 	_In_ HWND hwnd,
 	_In_ INT tab_id
 )
 {
-	INT listview_id;
+	PITEM_TAB_CONTEXT context;
 
-	if (tab_id == -1)
+	if (tab_id == INT_ERROR)
 		tab_id = _r_tab_getcurrentitem (hwnd, IDC_TAB);
 
-	listview_id = (INT)_r_tab_getitemlparam (hwnd, IDC_TAB, tab_id);
+	context = (PITEM_TAB_CONTEXT)_r_tab_getitemlparam (hwnd, IDC_TAB, tab_id);
 
-	return listview_id;
+	return context;
 }
 
 _Success_ (return != 0)
@@ -128,7 +128,6 @@ VOID _app_listview_addappitem (
 	_In_ PITEM_APP ptr_app
 )
 {
-	LPARAM listview_context;
 	INT listview_id;
 	INT item_id;
 
@@ -141,9 +140,7 @@ VOID _app_listview_addappitem (
 
 	_app_listview_lock (hwnd, listview_id, TRUE);
 
-	listview_context = _app_listview_createcontext (ptr_app->app_hash);
-
-	_r_listview_additem_ex (hwnd, listview_id, item_id, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, listview_context);
+	_r_listview_additem (hwnd, listview_id, item_id, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, _app_listview_createcontext (ptr_app->app_hash));
 
 	_app_setappiteminfo (hwnd, listview_id, item_id, ptr_app);
 
@@ -157,7 +154,6 @@ VOID _app_listview_addruleitem (
 	_In_ BOOLEAN is_forapp
 )
 {
-	LPARAM listview_context;
 	INT listview_id;
 	INT item_id;
 
@@ -170,9 +166,7 @@ VOID _app_listview_addruleitem (
 
 	_app_listview_lock (hwnd, listview_id, TRUE);
 
-	listview_context = _app_listview_createcontext (rule_idx);
-
-	_r_listview_additem_ex (hwnd, listview_id, item_id, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, listview_context);
+	_r_listview_additem (hwnd, listview_id, item_id, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, _app_listview_createcontext (rule_idx));
 
 	_app_setruleiteminfo (hwnd, listview_id, item_id, ptr_rule, is_forapp);
 
@@ -184,11 +178,7 @@ VOID _app_listview_addnetworkitem (
 	_In_ ULONG_PTR network_hash
 )
 {
-	LPARAM context;
-
-	context = _app_listview_createcontext (network_hash);
-
-	_r_listview_additem_ex (hwnd, IDC_NETWORK, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, context);
+	_r_listview_additem (hwnd, IDC_NETWORK, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, _app_listview_createcontext (network_hash));
 }
 
 VOID _app_listview_addlogitem (
@@ -196,11 +186,7 @@ VOID _app_listview_addlogitem (
 	_In_ ULONG_PTR log_hash
 )
 {
-	LPARAM context;
-
-	context = _app_listview_createcontext (log_hash);
-
-	_r_listview_additem_ex (hwnd, IDC_LOG, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, 0, context);
+	_r_listview_additem (hwnd, IDC_LOG, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, 0, _app_listview_createcontext (log_hash));
 }
 
 BOOLEAN _app_listview_islocked (
@@ -277,43 +263,47 @@ ULONG_PTR _app_listview_getappcontext (
 {
 	PITEM_NETWORK ptr_network;
 	PITEM_LOG ptr_log;
-	LPARAM lparam;
+	LPARAM context;
 
-	lparam = _r_listview_getitemlparam (hwnd, listview_id, item_id);
+	context = _r_listview_getitemlparam (hwnd, listview_id, item_id);
 
-	if (!lparam)
+	if (!context)
 		return 0;
 
-	lparam = _app_listview_getcontextcode (lparam);
+	context = _app_listview_getcontextcode (context);
 
-	if (listview_id == IDC_NETWORK)
+	switch (listview_id)
 	{
-		ptr_network = _app_network_getitem (lparam);
-
-		if (ptr_network)
+		case IDC_NETWORK:
 		{
-			lparam = ptr_network->app_hash;
+			ptr_network = _app_network_getitem (context);
 
-			_r_obj_dereference (ptr_network);
+			if (ptr_network)
+			{
+				context = ptr_network->app_hash;
 
-			return lparam;
+				_r_obj_dereference (ptr_network);
+			}
+
+			break;
+		}
+
+		case IDC_LOG:
+		{
+			ptr_log = _app_getlogitem (context);
+
+			if (ptr_log)
+			{
+				context = ptr_log->app_hash;
+
+				_r_obj_dereference (ptr_log);
+			}
+
+			break;
 		}
 	}
-	else if (listview_id == IDC_LOG)
-	{
-		ptr_log = _app_getlogitem (lparam);
 
-		if (ptr_log)
-		{
-			lparam = ptr_log->app_hash;
-
-			_r_obj_dereference (ptr_log);
-
-			return lparam;
-		}
-	}
-
-	return lparam;
+	return context;
 }
 
 ULONG_PTR _app_listview_getitemcontext (
@@ -346,7 +336,7 @@ BOOLEAN _app_listview_isitemhidden (
 	return !!context->is_hidden;
 }
 
-_Success_ (return != -1)
+_Success_ (return != INT_ERROR)
 INT _app_listview_finditem (
 	_In_ HWND hwnd,
 	_In_ INT listview_id,
@@ -370,10 +360,10 @@ INT _app_listview_finditem (
 	}
 	else
 	{
-		return _r_listview_finditem (hwnd, listview_id, -1, id_code);
+		return _r_listview_finditem (hwnd, listview_id, INT_ERROR, id_code);
 	}
 
-	return -1;
+	return INT_ERROR;
 }
 
 VOID _app_listview_removeitem (
@@ -395,7 +385,7 @@ VOID _app_listview_removeitem (
 
 	item_id = _app_listview_finditem (hwnd, listview_id, id_code);
 
-	if (item_id != -1)
+	if (item_id != INT_ERROR)
 		_r_listview_deleteitem (hwnd, listview_id, item_id);
 }
 
@@ -415,7 +405,7 @@ VOID _app_listview_showitemby_id (
 	if (!total_count)
 		return;
 
-	if (item_id != -1)
+	if (item_id != INT_ERROR)
 	{
 		item_id = _r_calc_clamp (item_id, 0, total_count - 1);
 
@@ -450,16 +440,16 @@ VOID _app_listview_showitemby_param (
 
 	if (listview_id != _app_listview_getcurrent (hwnd))
 	{
-		_app_listview_sort (hwnd, listview_id, -1, FALSE);
+		_app_listview_sort (hwnd, listview_id, INT_ERROR, FALSE);
 
 		_app_listview_resize (hwnd, listview_id, FALSE);
 	}
 
 	item_id = _app_listview_finditem (hwnd, listview_id, lparam);
 
-	if (item_id != -1)
+	if (item_id != INT_ERROR)
 	{
-		_app_listview_showitemby_id (hwnd, listview_id, item_id, -1);
+		_app_listview_showitemby_id (hwnd, listview_id, item_id, INT_ERROR);
 
 		_r_wnd_toggle (hwnd, TRUE);
 	}
@@ -508,7 +498,7 @@ VOID _app_listview_updateby_id (
 			_app_listview_refreshgroups (hwnd, listview_id);
 
 		if (!(flags & PR_UPDATE_NOSORT))
-			_app_listview_sort (hwnd, listview_id, -1, FALSE);
+			_app_listview_sort (hwnd, listview_id, INT_ERROR, FALSE);
 
 		if (!(flags & PR_UPDATE_NORESIZE))
 			_app_listview_resize (hwnd, listview_id, FALSE);
@@ -573,7 +563,7 @@ VOID _app_listview_updateitemby_param (
 
 	item_id = _app_listview_finditem (hwnd, listview_id, lparam);
 
-	if (item_id == -1)
+	if (item_id == INT_ERROR)
 		return;
 
 	if (is_app)
@@ -610,7 +600,7 @@ VOID _app_listview_updateitemby_id (
 	_In_ INT item_id
 )
 {
-	_r_listview_setitem_ex (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, 0);
+	_r_listview_setitem (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, I_DEFAULT);
 }
 
 VOID _app_listview_loadfont (
@@ -933,7 +923,7 @@ VOID _app_listview_setview (
 	_In_ INT listview_id
 )
 {
-	HIMAGELIST himg;
+	HIMAGELIST himg = NULL;
 	LONG view_type;
 	LONG icons_size;
 	BOOLEAN is_mainview;
@@ -971,7 +961,7 @@ VOID _app_listview_setview (
 	}
 	else
 	{
-		SHGetImageList (icons_size, &IID_IImageList2, &himg);
+		_r_imagelist_getsystem (icons_size, &himg);
 	}
 
 	if (himg)
@@ -986,12 +976,12 @@ INT CALLBACK _app_listview_compare_callback (
 	_In_ LPARAM lparam
 )
 {
-	WCHAR config_name[128];
+	WCHAR section_name[128];
 	HWND hwnd;
 	ULONG_PTR context1;
 	ULONG_PTR context2;
-	LONG column_id;
 	INT listview_id;
+	LONG column_id;
 	INT result = 0;
 	INT item_id1;
 	INT item_id2;
@@ -1020,10 +1010,10 @@ INT CALLBACK _app_listview_compare_callback (
 	item_id1 = (INT)(INT_PTR)lparam1;
 	item_id2 = (INT)(INT_PTR)lparam2;
 
-	_r_str_printf (config_name, RTL_NUMBER_OF (config_name), L"listview\\%04" TEXT (PRIX32), listview_id);
+	_r_str_printf (section_name, RTL_NUMBER_OF (section_name), L"listview\\%04" TEXT (PRIX32), listview_id);
 
-	column_id = _r_config_getlong_ex (L"SortColumn", 0, config_name);
-	is_descend = _r_config_getboolean_ex (L"SortIsDescending", FALSE, config_name);
+	column_id = _r_config_getlong_ex (L"SortColumn", 0, section_name);
+	is_descend = _r_config_getboolean_ex (L"SortIsDescending", FALSE, section_name);
 
 	if ((_r_listview_getstyle_ex (hwnd, listview_id) & LVS_EX_CHECKBOXES) != 0)
 	{
@@ -1066,7 +1056,7 @@ INT CALLBACK _app_listview_compare_callback (
 				}
 			}
 		}
-		else if (listview_id == IDC_LOG && column_id == 11)
+		else if (listview_id == IDC_LOG && column_id == 1)
 		{
 			ptr_log1 = _app_getlogitem (context1);
 			ptr_log2 = _app_getlogitem (context2);
@@ -1141,7 +1131,7 @@ VOID _app_listview_sort (
 	if (is_notifycode)
 		is_descend = !is_descend;
 
-	if (column_id == -1)
+	if (column_id == INT_ERROR)
 		column_id = _r_config_getlong_ex (L"SortColumn", 0, config_name);
 
 	column_id = _r_calc_clamp (column_id, 0, column_count - 1); // set range
@@ -1157,5 +1147,5 @@ VOID _app_listview_sort (
 
 	_r_listview_setcolumnsortindex (hwnd, listview_id, column_id, is_descend ? -1 : 1);
 
-	_r_wnd_sendmessage (hwnd, listview_id, LVM_SORTITEMSEX, (WPARAM)hlistview, (LPARAM)&_app_listview_compare_callback);
+	_r_listview_sort (hwnd, listview_id, &_app_listview_compare_callback, (WPARAM)hlistview);
 }

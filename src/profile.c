@@ -393,7 +393,7 @@ ULONG_PTR _app_addapplication (
 )
 {
 	WCHAR path_full[1024];
-	R_STRINGREF path_temp;
+	R_STRINGREF path_sr;
 	PITEM_APP ptr_app;
 	ULONG_PTR app_hash;
 	BOOLEAN is_ntoskrnl;
@@ -401,19 +401,19 @@ ULONG_PTR _app_addapplication (
 	if (_r_obj_isstringempty2 (path))
 		return 0;
 
-	if (_app_isappvalidpath (path) && PathIsDirectoryW (path->buffer))
+	if (_app_isappvalidpath (path) && _r_fs_isdirectory (&path->sr))
 		return 0;
 
-	_r_obj_initializestringref2 (&path_temp, &path->sr);
+	_r_obj_initializestringref2 (&path_sr, &path->sr);
 
 	// prevent possible duplicate apps entries with short path (issue #640)
-	if (_r_str_findchar (&path_temp, L'~', FALSE) != SIZE_MAX)
+	if (_r_str_findchar (&path_sr, L'~', FALSE) != SIZE_MAX)
 	{
-		if (GetLongPathNameW (path_temp.buffer, path_full, RTL_NUMBER_OF (path_full)))
-			_r_obj_initializestringref (&path_temp, path_full);
+		if (GetLongPathNameW (path_sr.buffer, path_full, RTL_NUMBER_OF (path_full)))
+			_r_obj_initializestringref (&path_sr, path_full);
 	}
 
-	app_hash = _r_str_gethash2 (&path_temp, TRUE);
+	app_hash = _r_str_gethash2 (&path_sr, TRUE);
 
 	if (_app_isappfound (app_hash))
 		return app_hash; // already exists
@@ -425,7 +425,7 @@ ULONG_PTR _app_addapplication (
 
 	if (type == DATA_UNKNOWN)
 	{
-		if (_r_str_isstartswith2 (&path_temp, L"S-1-", TRUE)) // uwp (win8+)
+		if (_r_str_isstartswith2 (&path_sr, L"S-1-", TRUE)) // uwp (win8+)
 			type = DATA_APP_UWP;
 	}
 
@@ -439,20 +439,20 @@ ULONG_PTR _app_addapplication (
 		if (real_path)
 			ptr_app->real_path = _r_obj_reference (real_path);
 	}
-	else if (_r_str_isstartswith2 (&path_temp, L"\\device\\", TRUE)) // device path
+	else if (_r_str_isstartswith2 (&path_sr, L"\\device\\", TRUE)) // device path
 	{
 		ptr_app->type = DATA_APP_DEVICE;
-		ptr_app->real_path = _r_obj_createstring2 (&path_temp);
+		ptr_app->real_path = _r_obj_createstring2 (&path_sr);
 	}
 	else
 	{
-		if (!is_ntoskrnl && _r_str_findchar (&path_temp, OBJ_NAME_PATH_SEPARATOR, FALSE) == SIZE_MAX)
+		if (!is_ntoskrnl && _r_str_findchar (&path_sr, OBJ_NAME_PATH_SEPARATOR, FALSE) == SIZE_MAX)
 		{
 			ptr_app->type = DATA_APP_PICO;
 		}
 		else
 		{
-			ptr_app->type = PathIsNetworkPathW (path_temp.buffer) ? DATA_APP_NETWORK : DATA_APP_REGULAR;
+			ptr_app->type = PathIsNetworkPathW (path_sr.buffer) ? DATA_APP_NETWORK : DATA_APP_REGULAR;
 		}
 
 		if (is_ntoskrnl)
@@ -461,11 +461,11 @@ ULONG_PTR _app_addapplication (
 		}
 		else
 		{
-			ptr_app->real_path = _r_obj_createstring2 (&path_temp);
+			ptr_app->real_path = _r_obj_createstring2 (&path_sr);
 		}
 	}
 
-	ptr_app->original_path = _r_obj_createstring2 (&path_temp);
+	ptr_app->original_path = _r_obj_createstring2 (&path_sr);
 
 	// fix "System" lowercase
 	if (is_ntoskrnl)
@@ -475,23 +475,26 @@ ULONG_PTR _app_addapplication (
 		ptr_app->original_path->buffer[0] = _r_str_upper (ptr_app->original_path->buffer[0]);
 	}
 
-	if (ptr_app->type == DATA_APP_REGULAR || ptr_app->type == DATA_APP_DEVICE || ptr_app->type == DATA_APP_NETWORK)
-		ptr_app->short_name = _r_path_getbasenamestring (&path_temp);
+	//if (ptr_app->type == DATA_APP_REGULAR || ptr_app->type == DATA_APP_DEVICE || ptr_app->type == DATA_APP_NETWORK)
+	{
+		ptr_app->short_name = _r_path_getbasenamestring (&path_sr);
+	}
 
-	ptr_app->guids = _r_obj_createarray (sizeof (GUID), NULL); // initialize array
+	ptr_app->guids = _r_obj_createarray (sizeof (GUID), 4, NULL); // initialize array
 	ptr_app->timestamp = _r_unixtime_now ();
 
 	// insert object into the table
-	_r_queuedlock_acquireexclusive (&lock_apps);
+	//
+	//_r_queuedlock_acquireexclusive (&lock_apps);
 	_r_obj_addhashtablepointer (apps_table, app_hash, ptr_app);
-	_r_queuedlock_releaseexclusive (&lock_apps);
+	//_r_queuedlock_releaseexclusive (&lock_apps);
 
 	// insert item
 	if (hwnd)
 		_app_listview_addappitem (hwnd, ptr_app);
 
 	// queue file information
-	if (ptr_app->real_path)
+	if (!_r_obj_isstringempty (ptr_app->real_path))
 		_app_getfileinformation (ptr_app->real_path, app_hash, ptr_app->type, _app_listview_getbytype (ptr_app->type));
 
 	return app_hash;
@@ -511,8 +514,8 @@ PITEM_RULE _app_addrule (
 
 	ptr_rule = _r_obj_allocate (sizeof (ITEM_RULE), &_app_dereferencerule);
 
-	ptr_rule->apps = _r_obj_createhashtable (sizeof (SHORT), NULL); // initialize hashtable
-	ptr_rule->guids = _r_obj_createarray (sizeof (GUID), NULL); // initialize array
+	ptr_rule->apps = _r_obj_createhashtable (sizeof (SHORT), 4, NULL); // initialize hashtable
+	ptr_rule->guids = _r_obj_createarray (sizeof (GUID), 4, NULL); // initialize array
 
 	ptr_rule->type = DATA_RULE_USER;
 
@@ -522,7 +525,7 @@ PITEM_RULE _app_addrule (
 		ptr_rule->name = _r_obj_reference (name);
 
 		if (_r_str_getlength2 (&ptr_rule->name->sr) > RULE_NAME_CCH_MAX)
-			_r_obj_setstringlength (&ptr_rule->name->sr, RULE_NAME_CCH_MAX * sizeof (WCHAR));
+			_r_str_setlength (&ptr_rule->name->sr, RULE_NAME_CCH_MAX * sizeof (WCHAR));
 	}
 
 	// set rule destination
@@ -531,7 +534,7 @@ PITEM_RULE _app_addrule (
 		ptr_rule->rule_remote = _r_obj_reference (rule_remote);
 
 		if (_r_str_getlength2 (&ptr_rule->rule_remote->sr) > RULE_RULE_CCH_MAX)
-			_r_obj_setstringlength (&ptr_rule->rule_remote->sr, RULE_RULE_CCH_MAX * sizeof (WCHAR));
+			_r_str_setlength (&ptr_rule->rule_remote->sr, RULE_RULE_CCH_MAX * sizeof (WCHAR));
 	}
 
 	// set rule source
@@ -540,7 +543,7 @@ PITEM_RULE _app_addrule (
 		ptr_rule->rule_local = _r_obj_reference (rule_local);
 
 		if (_r_str_getlength2 (&ptr_rule->rule_local->sr) > RULE_RULE_CCH_MAX)
-			_r_obj_setstringlength (&ptr_rule->rule_local->sr, RULE_RULE_CCH_MAX * sizeof (WCHAR));
+			_r_str_setlength (&ptr_rule->rule_local->sr, RULE_RULE_CCH_MAX * sizeof (WCHAR));
 	}
 
 	// set configuration
@@ -578,7 +581,9 @@ PITEM_APP _app_getappitem (
 	PITEM_APP ptr_app;
 
 	_r_queuedlock_acquireshared (&lock_apps);
+
 	ptr_app = _r_obj_findhashtablepointer (apps_table, app_hash);
+
 	_r_queuedlock_releaseshared (&lock_apps);
 
 	return ptr_app;
@@ -653,7 +658,9 @@ PITEM_RULE_CONFIG _app_getruleconfigitem (
 	PITEM_RULE_CONFIG ptr_rule_config;
 
 	_r_queuedlock_acquireshared (&lock_rules_config);
+
 	ptr_rule_config = _r_obj_findhashtable (rules_config, rule_hash);
+
 	_r_queuedlock_releaseshared (&lock_rules_config);
 
 	return ptr_rule_config;
@@ -667,7 +674,9 @@ PITEM_LOG _app_getlogitem (
 	PITEM_LOG ptr_log;
 
 	_r_queuedlock_acquireshared (&lock_loglist);
+
 	ptr_log = _r_obj_findhashtablepointer (log_table, log_hash);
+
 	_r_queuedlock_releaseshared (&lock_loglist);
 
 	return ptr_log;
@@ -683,14 +692,16 @@ ULONG_PTR _app_getlogapp (
 
 	ptr_log = _app_getlogitem (index);
 
-	if (!ptr_log)
-		return 0;
+	if (ptr_log)
+	{
+		app_hash = ptr_log->app_hash;
 
-	app_hash = ptr_log->app_hash;
+		_r_obj_dereference (ptr_log);
 
-	_r_obj_dereference (ptr_log);
+		return app_hash;
+	}
 
-	return app_hash;
+	return 0;
 }
 
 COLORREF _app_getappcolor (
@@ -792,7 +803,7 @@ VOID _app_deleteappitem (
 
 	item_id = _app_listview_finditem (hwnd, listview_id, id_code);
 
-	if (item_id != -1)
+	if (item_id != INT_ERROR)
 		_r_listview_deleteitem (hwnd, listview_id, item_id);
 }
 
@@ -920,7 +931,7 @@ VOID _app_setappiteminfo (
 	_In_ PITEM_APP ptr_app
 )
 {
-	_r_listview_setitem_ex (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, 0);
+	_r_listview_setitem (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, I_DEFAULT);
 
 	_r_listview_setitemcheck (hwnd, listview_id, item_id, !!ptr_app->is_enabled);
 }
@@ -936,7 +947,7 @@ VOID _app_setruleiteminfo (
 	ULONG_PTR enum_key = 0;
 	ULONG_PTR hash_code;
 
-	_r_listview_setitem_ex (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, 0);
+	_r_listview_setitem (hwnd, listview_id, item_id, 0, LPSTR_TEXTCALLBACK, I_IMAGECALLBACK, I_GROUPIDCALLBACK, I_DEFAULT);
 
 	_r_listview_setitemcheck (hwnd, listview_id, item_id, !!ptr_rule->is_enabled);
 
@@ -979,7 +990,9 @@ VOID _app_ruleenable (
 		if (is_createconfig)
 		{
 			_r_queuedlock_acquireexclusive (&lock_rules_config);
+
 			ptr_config = _app_addruleconfigtable (rules_config, rule_hash, ptr_rule->name, is_enable);
+
 			_r_queuedlock_releaseexclusive (&lock_rules_config);
 		}
 	}
@@ -1018,7 +1031,7 @@ BOOLEAN _app_ruleblocklistsetchange (
 {
 	BOOLEAN is_block;
 
-	if (new_state == -1)
+	if (new_state == INT_ERROR)
 		return FALSE; // don't change
 
 	if (new_state == 0 && !ptr_rule->is_enabled)
@@ -1034,8 +1047,8 @@ BOOLEAN _app_ruleblocklistsetchange (
 
 	ptr_rule->action = (new_state != 1) ? FWP_ACTION_BLOCK : FWP_ACTION_PERMIT;
 
-	ptr_rule->is_enabled = (new_state != 0);
 	ptr_rule->is_enabled_default = ptr_rule->is_enabled; // set default value for rule
+	ptr_rule->is_enabled = (new_state != 0);
 
 	return TRUE;
 }
@@ -1051,13 +1064,17 @@ BOOLEAN _app_ruleblocklistsetstate (
 		return FALSE;
 
 	if (_r_str_isstartswith2 (&ptr_rule->name->sr, L"spy_", TRUE))
+	{
 		return _app_ruleblocklistsetchange (ptr_rule, spy_state);
-
+	}
 	else if (_r_str_isstartswith2 (&ptr_rule->name->sr, L"update_", TRUE))
+	{
 		return _app_ruleblocklistsetchange (ptr_rule, update_state);
-
+	}
 	else if (_r_str_isstartswith2 (&ptr_rule->name->sr, L"extra_", TRUE))
+	{
 		return _app_ruleblocklistsetchange (ptr_rule, extra_state);
+	}
 
 	// fallback: block rules with other names by default!
 	return _app_ruleblocklistsetchange (ptr_rule, 2);
@@ -1076,7 +1093,7 @@ VOID _app_ruleblocklistset (
 	HANDLE hengine;
 	ULONG_PTR changes_count = 0;
 
-	rules = _r_obj_createlist (&_r_obj_dereference);
+	rules = _r_obj_createlist (6, &_r_obj_dereference);
 
 	_r_queuedlock_acquireshared (&lock_rules);
 
@@ -1119,8 +1136,7 @@ VOID _app_ruleblocklistset (
 				{
 					hengine = _wfp_getenginehandle ();
 
-					if (hengine)
-						_wfp_create4filters (hengine, rules, DBG_ARG, FALSE);
+					_wfp_create4filters (hengine, rules, DBG_ARG, FALSE);
 				}
 			}
 		}
@@ -1188,12 +1204,12 @@ PR_STRING _app_rulesexpandapps (
 	_In_ LPWSTR delimeter
 )
 {
-	R_STRINGBUILDER sr;
 	R_STRINGREF delimeter_sr;
-	PR_STRING string;
+	R_STRINGBUILDER sr;
 	PITEM_APP ptr_app;
-	ULONG_PTR hash_code;
+	PR_STRING string;
 	ULONG_PTR enum_key = 0;
+	ULONG_PTR hash_code;
 
 	_r_obj_initializestringbuilder (&sr, 256);
 
@@ -1228,7 +1244,7 @@ PR_STRING _app_rulesexpandapps (
 			if (ptr_app->type == DATA_APP_UWP)
 			{
 				if (ptr_app->display_name)
-					string = _r_path_compact (ptr_app->display_name, 64);
+					string = _r_path_compact (&ptr_app->display_name->sr, 64);
 			}
 		}
 
@@ -1237,12 +1253,12 @@ PR_STRING _app_rulesexpandapps (
 			if (is_fordisplay)
 			{
 				if (ptr_app->original_path)
-					string = _r_path_compact (ptr_app->original_path, 64);
+					string = _r_path_compact (&ptr_app->original_path->sr, 64);
 			}
 		}
 
 		if (!string)
-			string = _r_obj_reference (ptr_app->original_path);
+			string = _r_obj_referencesafe (ptr_app->original_path);
 
 		if (string)
 		{
@@ -1346,10 +1362,10 @@ BOOLEAN _app_isapphavedrive (
 		}
 		else
 		{
-			drive_id = -1;
+			drive_id = INT_ERROR;
 		}
 
-		if (ptr_app->type == DATA_APP_DEVICE || (drive_id != -1 && drive_id == letter))
+		if (ptr_app->type == DATA_APP_DEVICE || (drive_id != INT_ERROR && drive_id == letter))
 		{
 			if (ptr_app->is_enabled || _app_isapphaverule (ptr_app->app_hash, FALSE))
 			{
@@ -1404,14 +1420,14 @@ BOOLEAN _app_isappexists (
 	if (ptr_app->is_undeletable)
 		return TRUE;
 
-	if (ptr_app->is_haveerrors)
+	if (ptr_app->is_enabled && ptr_app->is_haveerrors)
 		return FALSE;
 
 	switch (ptr_app->type)
 	{
 		case DATA_APP_REGULAR:
 		{
-			if (ptr_app->real_path && !_r_fs_exists (ptr_app->real_path->buffer))
+			if (ptr_app->real_path && !_r_fs_exists (&ptr_app->real_path->sr))
 				return FALSE;
 
 			return TRUE;
@@ -1423,7 +1439,7 @@ BOOLEAN _app_isappexists (
 		case DATA_APP_UWP:
 		case DATA_APP_PICO:
 		{
-			return TRUE;
+			return TRUE; // service and UWP is already undeletable
 		}
 	}
 
@@ -1437,7 +1453,9 @@ BOOLEAN _app_isappfound (
 	BOOLEAN is_found;
 
 	_r_queuedlock_acquireshared (&lock_apps);
+
 	is_found = (_r_obj_findhashtable (apps_table, app_hash) != NULL);
+
 	_r_queuedlock_releaseshared (&lock_apps);
 
 	return is_found;
@@ -1463,7 +1481,7 @@ BOOLEAN _app_isappused (
 	_In_ PITEM_APP ptr_app
 )
 {
-	if (ptr_app->is_enabled || ptr_app->is_silent)
+	if (ptr_app->is_enabled || ptr_app->is_silent || ptr_app->is_undeletable)
 		return TRUE;
 
 	if (_app_isapphaverule (ptr_app->app_hash, TRUE))
@@ -1506,16 +1524,15 @@ BOOLEAN _app_isrulesupportedbyos (
 		}
 	}
 
-	return (_r_str_versioncompare (&current_version->sr, os_version) != -1);
+	return (_r_str_versioncompare (&current_version->sr, os_version) != INT_ERROR);
 }
 
 VOID _app_profile_initialize ()
 {
-	static R_STRINGREF profile_sr = PR_STRINGREF_INIT (XML_PROFILE_FILE);
-	static R_STRINGREF profile_bak_sr = PR_STRINGREF_INIT (XML_PROFILE_FILE L".bak");
-	static R_STRINGREF profile_internal_sr = PR_STRINGREF_INIT (XML_PROFILE_INTERNAL);
-	static R_STRINGREF separator_sr = PR_STRINGREF_INIT (L"\\");
-
+	R_STRINGREF profile_sr = PR_STRINGREF_INIT (XML_PROFILE_FILE);
+	R_STRINGREF profile_bak_sr = PR_STRINGREF_INIT (XML_PROFILE_FILE L".bak");
+	R_STRINGREF profile_internal_sr = PR_STRINGREF_INIT (XML_PROFILE_INTERNAL);
+	R_STRINGREF separator_sr = PR_STRINGREF_INIT (L"\\");
 	PR_STRING path;
 
 	path = _r_app_getprofiledirectory ();
@@ -1543,7 +1560,7 @@ NTSTATUS _app_profile_load_fromresource (
 		status = _r_res_loadresource (_r_sys_getimagebase (), RT_RCDATA, resource_name, 0, &bytes);
 
 		if (NT_SUCCESS (status))
-			status = _app_db_openfrombuffer (db_info, &bytes, XML_VERSION_CURRENT, XML_TYPE_PROFILE_INTERNAL);
+			status = _app_db_openfrombuffer (db_info, &bytes, XML_VERSION_MAXIMUM, XML_TYPE_PROFILE_INTERNAL);
 	}
 
 	return status;
@@ -1566,10 +1583,10 @@ VOID _app_profile_load_fallback ()
 	// disable deletion for this shit ;)
 	if (!_r_config_getboolean (L"IsInternalRulesDisabled", FALSE))
 	{
-		if (!_app_isappfound (config.ntoskrnl_hash) && config.system_path)
+		if (!_app_isappfound (config.ntoskrnl_hash) && !_r_obj_isstringempty (config.system_path))
 			_app_addapplication (NULL, DATA_UNKNOWN, config.system_path, NULL, NULL);
 
-		if (!_app_isappfound (config.svchost_hash) && config.svchost_path)
+		if (!_app_isappfound (config.svchost_hash) && !_r_obj_isstringempty (config.svchost_path))
 			_app_addapplication (NULL, DATA_UNKNOWN, config.svchost_path, NULL, NULL);
 
 		_app_setappinfobyhash (config.ntoskrnl_hash, INFO_IS_UNDELETABLE, IntToPtr (TRUE));
@@ -1584,8 +1601,8 @@ VOID _app_profile_load_internal (
 	_Out_ PLONG64 out_timestamp
 )
 {
-	DB_INFORMATION db_info_file;
 	DB_INFORMATION db_info_buffer;
+	DB_INFORMATION db_info_file;
 	PDB_INFORMATION db_info;
 	BOOLEAN is_loadfromresource;
 	LONG64 timestamp = 0;
@@ -1595,10 +1612,10 @@ VOID _app_profile_load_internal (
 
 	status_file = _app_db_initialize (&db_info_file, TRUE);
 
-	if (_r_fs_exists (path->buffer))
+	if (_r_fs_exists (&path->sr))
 	{
 		if (NT_SUCCESS (status_file))
-			status_file = _app_db_openfromfile (&db_info_file, path, XML_VERSION_CURRENT, XML_TYPE_PROFILE_INTERNAL);
+			status_file = _app_db_openfromfile (&db_info_file, path, XML_VERSION_MAXIMUM, XML_TYPE_PROFILE_INTERNAL);
 	}
 	else
 	{
@@ -1639,12 +1656,12 @@ VOID _app_profile_load_internal (
 
 	*out_timestamp = timestamp;
 
-	_app_db_destroy (&db_info_file);
 	_app_db_destroy (&db_info_buffer);
+	_app_db_destroy (&db_info_file);
 }
 
 VOID _app_profile_refresh (
-	_In_ HWND hwnd
+	_In_opt_ HWND hwnd
 )
 {
 	// clear apps
@@ -1662,10 +1679,13 @@ VOID _app_profile_refresh (
 	_r_obj_clearhashtable (rules_config);
 	_r_queuedlock_releaseexclusive (&lock_rules_config);
 
+	if (!hwnd)
+		hwnd = _r_app_gethwnd ();
+
 	// generate services list
 	_app_package_getserviceslist (hwnd);
 
-	// generate uwp apps list (win8+)
+	// generate uwp packages list (win8+)
 	if (_r_sys_isosversiongreaterorequal (WINDOWS_8))
 		_app_package_getpackageslist (hwnd);
 }
@@ -1738,7 +1758,7 @@ CleanupExit:
 	{
 		// load internal rules (new!)
 		if (!_r_config_getboolean (L"IsInternalRulesDisabled", FALSE))
-			_app_profile_load_internal (hwnd, profile_info.profile_path_internal, MAKEINTRESOURCEW (IDR_PROFILE_INTERNAL), &profile_info.profile_internal_timestamp);
+			_app_profile_load_internal (hwnd, profile_info.profile_path_internal, MAKEINTRESOURCE (IDR_PROFILE_INTERNAL), &profile_info.profile_internal_timestamp);
 
 		_app_profile_load_fallback ();
 
@@ -1776,7 +1796,7 @@ NTSTATUS _app_profile_save (
 
 	if (_r_config_getboolean (L"IsBackupProfile", TRUE))
 	{
-		if (!_r_fs_exists (profile_info.profile_path_backup->buffer))
+		if (!_r_fs_exists (&profile_info.profile_path_backup->sr))
 			is_backuprequired = TRUE;
 
 		if (!is_backuprequired)
@@ -1787,7 +1807,9 @@ NTSTATUS _app_profile_save (
 	}
 
 	_r_queuedlock_acquireexclusive (&lock_profile);
-	status = _app_db_savetofile (&db_info, profile_info.profile_path, XML_VERSION_CURRENT, XML_TYPE_PROFILE, timestamp);
+
+	status = _app_db_savetofile (&db_info, profile_info.profile_path, XML_VERSION_MAXIMUM, XML_TYPE_PROFILE, timestamp);
+
 	_r_queuedlock_releaseexclusive (&lock_profile);
 
 	if (!NT_SUCCESS (status))
@@ -1803,7 +1825,7 @@ NTSTATUS _app_profile_save (
 	// make backup
 	if (is_backuprequired)
 	{
-		_r_fs_copyfile (profile_info.profile_path->buffer, profile_info.profile_path_backup->buffer, FALSE);
+		_r_fs_copyfile (&profile_info.profile_path->sr, &profile_info.profile_path_backup->sr, FALSE);
 
 		_r_config_setlong64 (L"BackupTimestamp", timestamp);
 	}

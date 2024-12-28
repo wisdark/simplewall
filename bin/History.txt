@@ -1,3 +1,37 @@
+v3.8.5 (27 November 2024)
+- fixed adding apps with drive letters instead of specific apps (issue #1887)
+- fixed creating rules for inaccessible paths (issue #1891)
+- fixed opening log with spaces path (issue #1912)
+- fixed windows 7 loopback rules
+- cosmetic fixes
+
+v3.8.4 (11 September 2024)
+- added listview empty markup
+- fixed tray icon middle click not worked when log ui is disabled
+- fixed notification displays invalid signature (issue #1871)
+- fixed does not show up tray icon (issue #1844)
+- fixed crash when cleanup timers (issue #1860)
+- fixed possible memory leak
+- updated project sdk
+- updated rule hint
+- cosmetic fixes
+
+v3.8.3 (8 August 2024)
+- added remember last position of notification window (issue #1659)
+- added watch services & uwp apps for install/uninstall
+- added displays long time for apps
+- improved windows 7 compatibility
+- improved arm64 compatibility
+- improved dark theme support
+- fixed show log button does not work as expected (issue #1757, again!)
+- fixed apps sometimes delete themselves (issue #1794, not fixed)
+- fixed duplicate process at startup (issue #1769)
+- fixed do not save hash when it is not enabled
+- fixed row colors for dark mode (issue #1767)
+- fixed log listview sorting by date
+- fixed displaying timer tooltip
+- updated project sdk
+
 v3.8.2 (9 May 2024)
 - revert back windows 7 & windows 8 support
 - improved dark theme support

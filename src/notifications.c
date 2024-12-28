@@ -24,7 +24,7 @@ HWND _app_notify_getwindow (
 	if (!ptr_log)
 		return NULL;
 
-	new_hwnd = _r_wnd_createwindow (_r_sys_getimagebase (), MAKEINTRESOURCEW (IDD_NOTIFICATION), NULL, &NotificationProc, ptr_log);
+	new_hwnd = _r_wnd_createwindow (_r_sys_getimagebase (), MAKEINTRESOURCE (IDD_NOTIFICATION), NULL, &NotificationProc, ptr_log);
 
 	_r_sys_waitforsingleobject (config.hnotify_evt, 2000);
 
@@ -82,7 +82,7 @@ BOOLEAN _app_notify_command (
 
 	_app_notify_freeobject (hwnd, ptr_app);
 
-	rules = _r_obj_createlist (NULL);
+	rules = _r_obj_createlist (4, NULL);
 
 	if (button_id == IDC_ALLOW_BTN || button_id == IDC_BLOCK_BTN)
 	{
@@ -117,8 +117,7 @@ BOOLEAN _app_notify_command (
 		{
 			hengine = _wfp_getenginehandle ();
 
-			if (hengine)
-				_wfp_create3filters (hengine, rules, DBG_ARG, FALSE);
+			_wfp_create3filters (hengine, rules, DBG_ARG, FALSE);
 		}
 	}
 
@@ -349,13 +348,7 @@ VOID _app_notify_show (
 	_app_notify_setapp_icon (hwnd, NULL);
 
 	// set window title
-	_r_str_printf (
-		window_title,
-		RTL_NUMBER_OF (window_title),
-		L"%s - %s",
-		_r_locale_getstring (IDS_NOTIFY_TITLE),
-		_r_app_getname ()
-	);
+	_r_str_printf (window_title, RTL_NUMBER_OF (window_title), L"%s - %s", _r_locale_getstring (IDS_NOTIFY_TITLE), _r_app_getname ());
 
 	_r_ctrl_setstring (hwnd, 0, window_title);
 
@@ -442,42 +435,34 @@ VOID _app_notify_playsound ()
 	static volatile PR_STRING cached_path = NULL;
 
 	PR_STRING current_path;
-	PR_STRING new_path;
-	PR_STRING expanded_string;
+	PR_STRING path;
 	HANDLE hkey;
-	ULONG flags;
+	ULONG flags = SND_ASYNC | SND_NODEFAULT | SND_NOWAIT | SND_SENTRY;
 	NTSTATUS status;
 
 	current_path = _InterlockedCompareExchangePointer (&cached_path, NULL, NULL);
 
-	if (!current_path || !_r_fs_exists (current_path->buffer))
+	if (_r_obj_isstringempty (current_path) || !_r_fs_exists (&current_path->sr))
 	{
-		status = _r_reg_openkey (HKEY_CURRENT_USER, L"AppEvents\\Schemes\\Apps\\.Default\\" NOTIFY_SOUND_NAME L"\\.Default", KEY_READ, &hkey);
+		status = _r_reg_openkey (HKEY_CURRENT_USER, L"AppEvents\\Schemes\\Apps\\.Default\\" NOTIFY_SOUND_NAME L"\\.Default", 0, KEY_READ, &hkey);
 
 		if (NT_SUCCESS (status))
 		{
-			status = _r_reg_querystring (hkey, NULL, &new_path);
+			status = _r_reg_querystring (hkey, NULL, &path, NULL);
 
 			if (NT_SUCCESS (status))
 			{
-				status = _r_str_environmentexpandstring (NULL, &new_path->sr, &expanded_string);
-
-				if (NT_SUCCESS (status))
-					_r_obj_movereference (&new_path, expanded_string);
-
-				current_path = _InterlockedCompareExchangePointer (&cached_path, new_path, current_path);
+				current_path = _InterlockedCompareExchangePointer (&cached_path, path, current_path);
 
 				if (current_path)
-					_r_obj_dereference (new_path);
+					_r_obj_dereference (path);
 			}
 
 			NtClose (hkey);
 		}
 	}
 
-	flags = SND_ASYNC | SND_NODEFAULT | SND_NOWAIT | SND_SENTRY;
-
-	if (_r_obj_isstringempty (current_path) || !PlaySoundW (current_path->buffer, NULL, flags | SND_FILENAME))
+	if (_r_obj_isstringempty (current_path) || !_r_fs_exists (&current_path->sr) || !PlaySoundW (current_path->buffer, NULL, flags | SND_FILENAME))
 		PlaySoundW (NOTIFY_SOUND_NAME, NULL, flags);
 }
 
@@ -500,8 +485,8 @@ VOID _app_notify_killprocess (
 	_In_ HWND hwnd
 )
 {
-	PSYSTEM_PROCESS_INFORMATION spi;
 	PSYSTEM_PROCESS_INFORMATION process;
+	PSYSTEM_PROCESS_INFORMATION spi;
 	PNOTIFY_CONTEXT context;
 	HANDLE process_handle;
 	PITEM_APP ptr_app;
@@ -536,39 +521,39 @@ VOID _app_notify_killprocess (
 
 	do
 	{
-		if (process->ImageName.Buffer)
+		if (!process->ImageName.Buffer)
+			continue;
+
+		if (_r_str_compare (process->ImageName.Buffer, file_name->buffer, TRUE) == 0)
 		{
-			if (_r_str_compare (process->ImageName.Buffer, file_name->buffer, 0) == 0)
+			status = _r_sys_getprocessimagepathbyid (process->UniqueProcessId, TRUE, &path);
+
+			if (NT_SUCCESS (status))
 			{
-				status = _r_sys_getprocessimagepathbyid (process->UniqueProcessId, TRUE, &path);
-
-				if (NT_SUCCESS (status))
+				if (_r_str_isequal (&path->sr, &ptr_app->real_path->sr, TRUE))
 				{
-					if (_r_str_compare (path->buffer, ptr_app->real_path->buffer, 0) == 0)
+					status = _r_sys_openprocess (process->UniqueProcessId, PROCESS_TERMINATE, &process_handle);
+
+					if (NT_SUCCESS (status))
 					{
-						status = _r_sys_openprocess (process->UniqueProcessId, PROCESS_TERMINATE, &process_handle);
+						status = NtTerminateProcess (process_handle, STATUS_SUCCESS);
 
-						if (NT_SUCCESS (status))
-						{
-							status = NtTerminateProcess (process_handle, STATUS_SUCCESS);
+						if (!NT_SUCCESS (status))
+							_r_show_errormessage (hwnd, L"Cannot terminate process!", status, process->ImageName.Buffer, ET_NATIVE);
 
-							if (!NT_SUCCESS (status))
-								_r_show_errormessage (hwnd, L"Cannot terminate process!", status, process->ImageName.Buffer, ET_NATIVE);
-
-							NtClose (process_handle);
-						}
-						else
-						{
-							_r_show_errormessage (hwnd, L"Cannot open process!", status, process->ImageName.Buffer, ET_NATIVE);
-						}
+						NtClose (process_handle);
 					}
+					else
+					{
+						_r_show_errormessage (hwnd, L"Cannot open process!", status, process->ImageName.Buffer, ET_NATIVE);
+					}
+				}
 
-					_r_obj_dereference (path);
-				}
-				else
-				{
-					_r_show_errormessage (hwnd, L"Cannot get process path!", status, process->ImageName.Buffer, ET_NATIVE);
-				}
+				_r_obj_dereference (path);
+			}
+			else
+			{
+				_r_show_errormessage (hwnd, L"Cannot get process path!", status, process->ImageName.Buffer, ET_NATIVE);
 			}
 		}
 	}
@@ -737,8 +722,8 @@ VOID _app_notify_initialize (
 	// set window icon
 	_r_wnd_seticon (
 		context->hwnd,
-		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCEW (SIH_EXCLAMATION), icon_small),
-		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCEW (SIH_EXCLAMATION), icon_large)
+		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCE (SIH_EXCLAMATION), icon_small),
+		_r_sys_loadsharedicon (NULL, MAKEINTRESOURCE (SIH_EXCLAMATION), icon_large)
 	);
 
 	// set window font
@@ -763,11 +748,11 @@ VOID _app_notify_initialize (
 	}
 
 	// load images
-	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_SETTINGS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_rules);
-	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_ALLOW), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_allow);
-	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_BLOCK), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_block);
-	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_CROSS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_cross);
-	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCEW (IDP_NEXT), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_next);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCE (IDP_SETTINGS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_rules);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCE (IDP_ALLOW), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_allow);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCE (IDP_BLOCK), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_block);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCE (IDP_CROSS), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_cross);
+	_r_res_loadimage (_r_sys_getimagebase (), L"PNG", MAKEINTRESOURCE (IDP_NEXT), &GUID_ContainerFormatPng, icon_small, icon_small, &hbmp_next);
 
 	// set button configuration
 	if (hbmp_rules)
@@ -1389,16 +1374,13 @@ INT_PTR CALLBACK NotificationProc (
 					{
 						hengine = _wfp_getenginehandle ();
 
-						if (hengine)
-						{
-							rules = _r_obj_createlist (NULL);
+						rules = _r_obj_createlist (1, NULL);
 
-							_r_obj_addlistitem (rules, ptr_rule);
+						_r_obj_addlistitem (rules, ptr_rule);
 
-							_wfp_create4filters (hengine, rules, DBG_ARG, FALSE);
+						_wfp_create4filters (hengine, rules, DBG_ARG, FALSE);
 
-							_r_obj_dereference (rules);
-						}
+						_r_obj_dereference (rules);
 					}
 
 					_app_listview_updateby_id (_r_app_gethwnd (), DATA_LISTVIEW_CURRENT, PR_UPDATE_TYPE);

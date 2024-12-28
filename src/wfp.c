@@ -81,17 +81,21 @@ HANDLE _wfp_getenginehandle ()
 	static HANDLE engine_handle = NULL;
 
 	FWPM_SESSION0 session;
-	ULONG status;
 	ULONG attempts = 6;
+	ULONG status;
 
 	if (_r_initonce_begin (&init_once))
 	{
+		_r_math_generateguid (&config.session_key);
+
 		do
 		{
 			RtlZeroMemory (&session, sizeof (session));
 
 			session.displayData.name = _r_app_getname ();
 			session.displayData.description = _r_app_getname ();
+
+			session.sessionKey = config.session_key;
 
 			session.txnWaitTimeoutInMSec = TRANSACTION_TIMEOUT;
 
@@ -116,9 +120,9 @@ HANDLE _wfp_getenginehandle ()
 					}
 				}
 
-				_r_log (LOG_LEVEL_CRITICAL, NULL, L"FwpmEngineOpen0", status, NULL);
-
 				_r_show_errormessage (_r_app_gethwnd (), L"WFP engine initialization failed! Try again later.", status, NULL, ET_WINDOWS);
+
+				_r_log (LOG_LEVEL_CRITICAL, NULL, L"FwpmEngineOpen0", status, NULL);
 
 				RtlExitUserProcess (status);
 
@@ -140,21 +144,16 @@ ENUM_INSTALL_TYPE _wfp_getinstalltype ()
 
 	engine_handle = _wfp_getenginehandle ();
 
-	if (engine_handle)
-	{
-		install_type = _wfp_isproviderinstalled (engine_handle);
+	install_type = _wfp_isproviderinstalled (engine_handle);
 
-		return install_type;
-	}
-
-	return INSTALL_DISABLED;
+	return install_type;
 }
 
 PR_STRING _wfp_getlayername (
 	_In_ LPGUID layer_guid
 )
 {
-	static LPCGUID layer_guids[] = {
+	LPCGUID layer_guids[] = {
 		&FWPM_LAYER_ALE_AUTH_CONNECT_V4,
 		&FWPM_LAYER_ALE_AUTH_CONNECT_V6,
 		&FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
@@ -177,7 +176,7 @@ PR_STRING _wfp_getlayername (
 		&FWPM_LAYER_OUTBOUND_ICMP_ERROR_V6,
 	};
 
-	static R_STRINGREF layer_names[] = {
+	R_STRINGREF layer_names[] = {
 		PR_STRINGREF_INIT (L"FWPM_LAYER_ALE_AUTH_CONNECT_V4"),
 		PR_STRINGREF_INIT (L"FWPM_LAYER_ALE_AUTH_CONNECT_V6"),
 		PR_STRINGREF_INIT (L"FWPM_LAYER_ALE_CONNECT_REDIRECT_V4"),
@@ -222,13 +221,13 @@ BOOLEAN _wfp_initialize (
 {
 	FWPM_PROVIDER0 provider;
 	FWPM_SUBLAYER0 sublayer;
-	FWP_VALUE0 val;
 	FWP_VALUE0* fwp_query = NULL;
-	ULONG status;
+	FWP_VALUE0 val;
+	BOOLEAN is_success = TRUE; // already initialized
 	BOOLEAN is_providerexist;
 	BOOLEAN is_sublayerexist;
 	BOOLEAN is_intransact;
-	BOOLEAN is_success = TRUE; // already initialized
+	ULONG status;
 
 	_r_queuedlock_acquireshared (&lock_transaction);
 
@@ -331,9 +330,6 @@ BOOLEAN _wfp_initialize (
 	// set sublayer security information
 	_app_setsublayersecurity (engine_handle, &GUID_WfpSublayer, TRUE);
 
-	// set engine options
-	RtlZeroMemory (&val, sizeof (val));
-
 	// dropped packets logging (win7+)
 	if (!config.is_neteventset)
 	{
@@ -356,6 +352,8 @@ BOOLEAN _wfp_initialize (
 		}
 		else
 		{
+			RtlZeroMemory (&val, sizeof (val));
+
 			val.type = FWP_UINT32;
 			val.uint32 = TRUE;
 
@@ -388,6 +386,8 @@ BOOLEAN _wfp_initialize (
 			// when enabled, the system is able to evenly distribute cpu load
 			// to multiple cpus for site-to-site ipsec tunnel scenarios.
 
+			RtlZeroMemory (&val, sizeof (val));
+
 			val.type = FWP_UINT32;
 			val.uint32 = FWPM_ENGINE_OPTION_PACKET_QUEUE_INBOUND | FWPM_ENGINE_OPTION_PACKET_QUEUE_FORWARD;
 
@@ -413,7 +413,7 @@ VOID _wfp_uninitialize (
 	PR_ARRAY callouts;
 	PR_STRING string;
 	LPGUID guid;
-	FWP_VALUE0 val = {0};
+	FWP_VALUE0 val;
 	BOOLEAN is_intransact;
 	ULONG status;
 
@@ -425,6 +425,8 @@ VOID _wfp_uninitialize (
 
 	if (!config.is_neteventenabled && config.is_neteventset)
 	{
+		RtlZeroMemory (&val, sizeof (val));
+
 		val.type = FWP_UINT32;
 		val.uint32 = FALSE;
 
@@ -546,7 +548,7 @@ VOID _wfp_installfilters (
 		_r_obj_dereference (guids);
 	}
 
-	rules = _r_obj_createlist (&_r_obj_dereference);
+	rules = _r_obj_createlist (10, &_r_obj_dereference);
 
 	// apply apps rules
 	enum_key = 0;
@@ -841,7 +843,7 @@ ULONG _wfp_createfilter (
 	if (status == ERROR_SUCCESS)
 	{
 		if (guids)
-			_r_obj_addarrayitem (guids, &filter.filterKey);
+			_r_obj_addarrayitem (guids, &filter.filterKey, NULL);
 	}
 	else
 	{
@@ -1396,7 +1398,7 @@ BOOLEAN _wfp_create4filters (
 	if (!is_intransact && _wfp_isfiltersapplying ())
 		is_intransact = TRUE;
 
-	guids = _r_obj_createarray (sizeof (GUID), NULL);
+	guids = _r_obj_createarray (sizeof (GUID), 10, NULL);
 
 	if (!is_intransact)
 	{
@@ -1614,7 +1616,7 @@ BOOLEAN _wfp_create3filters (
 	if (!is_intransact && _wfp_isfiltersapplying ())
 		is_intransact = TRUE;
 
-	guids = _r_obj_createarray (sizeof (GUID), NULL);
+	guids = _r_obj_createarray (sizeof (GUID), 10, NULL);
 
 	is_enabled = _app_initinterfacestate (_r_app_gethwnd (), FALSE);
 
@@ -1717,7 +1719,7 @@ BOOLEAN _wfp_create2filters (
 )
 {
 	// ipv4/ipv6 loopback
-	static R_STRINGREF loopback_list[] = {
+	R_STRINGREF loopback_list[] = {
 		PR_STRINGREF_INIT (L"0.0.0.0/8"),
 		PR_STRINGREF_INIT (L"10.0.0.0/8"),
 		PR_STRINGREF_INIT (L"100.64.0.0/10"),
@@ -2054,11 +2056,14 @@ BOOLEAN _wfp_create2filters (
 	if (_r_config_getboolean (L"UseStealthMode", TRUE))
 	{
 		// blocks udp port scanners
-		// tests if the network traffic is (non-)app container loopback traffic (win8+)
 		fwfc[0].fieldKey = FWPM_CONDITION_FLAGS;
 		fwfc[0].matchType = FWP_MATCH_FLAGS_NONE_SET;
 		fwfc[0].conditionValue.type = FWP_UINT32;
-		fwfc[0].conditionValue.uint32 = FWP_CONDITION_FLAG_IS_LOOPBACK | FWP_CONDITION_FLAG_IS_APPCONTAINER_LOOPBACK;
+		fwfc[0].conditionValue.uint32 = FWP_CONDITION_FLAG_IS_LOOPBACK;
+
+		// tests if the network traffic is (non-)app container loopback traffic (win8+)
+		if (_r_sys_isosversiongreaterorequal (WINDOWS_8))
+			fwfc[0].conditionValue.uint32 |= FWP_CONDITION_FLAG_IS_APPCONTAINER_LOOPBACK;
 
 		fwfc[1].fieldKey = FWPM_CONDITION_ICMP_TYPE;
 		fwfc[1].matchType = FWP_MATCH_EQUAL;
@@ -2130,9 +2135,16 @@ BOOLEAN _wfp_create2filters (
 	if (_r_config_getboolean (L"InstallBoottimeFilters", TRUE) && !config.is_filterstemporary)
 	{
 		fwfc[0].fieldKey = FWPM_CONDITION_FLAGS;
-		fwfc[0].matchType = FWP_MATCH_FLAGS_ANY_SET;
+		fwfc[0].matchType = FWP_MATCH_FLAGS_ALL_SET;
 		fwfc[0].conditionValue.type = FWP_UINT32;
-		fwfc[0].conditionValue.uint32 = FWP_CONDITION_FLAG_IS_LOOPBACK | FWP_CONDITION_FLAG_IS_APPCONTAINER_LOOPBACK;
+		fwfc[0].conditionValue.uint32 = FWP_CONDITION_FLAG_IS_LOOPBACK;
+
+		// tests if the network traffic is (non-)app container loopback traffic (win8+)
+		if (_r_sys_isosversiongreaterorequal (WINDOWS_8))
+		{
+			fwfc[0].matchType = FWP_MATCH_FLAGS_ANY_SET;
+			fwfc[0].conditionValue.uint32 |= FWP_CONDITION_FLAG_IS_APPCONTAINER_LOOPBACK;
+		}
 
 		_wfp_createfilter (
 			engine_handle,
@@ -2500,8 +2512,8 @@ ULONG _wfp_dumpcallouts (
 	FWPM_CALLOUT0 *callout;
 	PR_ARRAY guids = NULL;
 	HANDLE enum_handle = NULL;
-	ULONG status;
 	UINT32 return_count;
+	ULONG status;
 
 	*out_buffer = NULL;
 
@@ -2522,7 +2534,7 @@ ULONG _wfp_dumpcallouts (
 		goto CleanupExit;
 	}
 
-	guids = _r_obj_createarray_ex (sizeof (GUID), return_count, NULL);
+	guids = _r_obj_createarray (sizeof (GUID), return_count, NULL);
 
 	for (UINT32 i = 0; i < return_count; i++)
 	{
@@ -2532,7 +2544,7 @@ ULONG _wfp_dumpcallouts (
 			continue;
 
 		if (IsEqualGUID (callout->providerKey, provider_id))
-			_r_obj_addarrayitem (guids, &callout->calloutKey);
+			_r_obj_addarrayitem (guids, &callout->calloutKey, NULL);
 	}
 
 	if (_r_obj_isempty2 (guids))
@@ -2589,7 +2601,7 @@ ULONG _wfp_dumpfilters (
 		goto CleanupExit;
 	}
 
-	guids = _r_obj_createarray_ex (sizeof (GUID), return_count, NULL);
+	guids = _r_obj_createarray (sizeof (GUID), return_count, NULL);
 
 	for (UINT32 i = 0; i < return_count; i++)
 	{
@@ -2599,7 +2611,7 @@ ULONG _wfp_dumpfilters (
 			continue;
 
 		if (IsEqualGUID (filter->providerKey, provider_id))
-			_r_obj_addarrayitem (guids, &filter->filterKey);
+			_r_obj_addarrayitem (guids, &filter->filterKey, NULL);
 	}
 
 	if (_r_obj_isempty2 (guids))
@@ -2624,8 +2636,7 @@ CleanupExit:
 }
 
 VOID NTAPI _wfp_applythread (
-	_In_ PVOID arglist,
-	_In_ ULONG busy_count
+	_In_ PVOID arglist
 )
 {
 	PITEM_CONTEXT context;
@@ -2637,33 +2648,30 @@ VOID NTAPI _wfp_applythread (
 	context = (PITEM_CONTEXT)arglist;
 	engine_handle = _wfp_getenginehandle ();
 
-	if (engine_handle)
+	// dropped packets logging (win7+)
+	if (config.is_neteventset)
+		_wfp_logunsubscribe (engine_handle);
+
+	if (context->is_install)
 	{
-		// dropped packets logging (win7+)
-		if (config.is_neteventset)
-			_wfp_logunsubscribe (engine_handle);
-
-		if (context->is_install)
-		{
-			if (_wfp_initialize (context->hwnd, engine_handle))
-				_wfp_installfilters (engine_handle);
-		}
-		else
-		{
-			if (_r_sys_isosversiongreaterorequal (WINDOWS_10))
-				_app_wufixenable (context->hwnd, FALSE);
-
-			_wfp_destroyfilters (engine_handle);
-			_wfp_uninitialize (engine_handle, TRUE);
-		}
-
-		// dropped packets logging (win7+)
-		if (config.is_neteventset)
-			_wfp_logsubscribe (context->hwnd, engine_handle);
-
-		if (_r_sys_isosversiongreaterorequal (WINDOWS_10))
-			_app_wufixenable (context->hwnd, _r_config_getboolean (L"IsWUFixEnabled", FALSE));
+		if (_wfp_initialize (context->hwnd, engine_handle))
+			_wfp_installfilters (engine_handle);
 	}
+	else
+	{
+		if (_r_sys_isosversiongreaterorequal (WINDOWS_10))
+			_app_wufixenable (context->hwnd, FALSE);
+
+		_wfp_destroyfilters (engine_handle);
+		_wfp_uninitialize (engine_handle, TRUE);
+	}
+
+	// dropped packets logging (win7+)
+	if (config.is_neteventset)
+		_wfp_logsubscribe (context->hwnd, engine_handle);
+
+	if (_r_sys_isosversiongreaterorequal (WINDOWS_10))
+		_app_wufixenable (context->hwnd, _r_config_getboolean (L"IsWUFixEnabled", FALSE));
 
 	dpi_value = _r_dc_getwindowdpi (context->hwnd);
 
@@ -2681,7 +2689,7 @@ VOID _wfp_firewallenable (
 	_In_ BOOLEAN is_enable
 )
 {
-	static NET_FW_PROFILE_TYPE2 profile_types[] = {
+	NET_FW_PROFILE_TYPE2 profile_types[] = {
 		NET_FW_PROFILE2_DOMAIN,
 		NET_FW_PROFILE2_PRIVATE,
 		NET_FW_PROFILE2_PUBLIC
@@ -2708,7 +2716,7 @@ VOID _wfp_firewallenable (
 
 BOOLEAN _wfp_firewallisenabled ()
 {
-	static NET_FW_PROFILE_TYPE2 profile_types[] = {
+	NET_FW_PROFILE_TYPE2 profile_types[] = {
 		NET_FW_PROFILE2_DOMAIN,
 		NET_FW_PROFILE2_PRIVATE,
 		NET_FW_PROFILE2_PUBLIC
@@ -2750,8 +2758,8 @@ NTSTATUS _FwpmGetAppIdFromFileName1 (
 )
 {
 	R_STRINGREF path_skip_root;
-	R_STRINGREF path_root;
 	PR_STRING original_path;
+	PR_STRING path_root;
 	NTSTATUS status;
 
 	*byte_blob = NULL;
@@ -2781,16 +2789,20 @@ NTSTATUS _FwpmGetAppIdFromFileName1 (
 					else
 					{
 						// file path (without root)
-						_r_obj_initializestringref2 (&path_root, &path->sr);
+						path_root = _r_obj_createstring2 (&path->sr);
 
-						PathStripToRootW (path_root.buffer);
+						PathStripToRootW (path_root->buffer);
 
-						_r_obj_trimstringtonullterminator (&path_root);
+						_r_str_trimtonullterminator (&path_root->sr);
 
-						status = _r_path_ntpathfromdos (&path_root, FALSE, &original_path);
+						status = _r_path_ntpathfromdos (&path_root->sr, FALSE, &original_path);
 
 						if (!NT_SUCCESS (status))
+						{
+							_r_obj_dereference (path_root);
+
 							return status;
+						}
 
 						// file path (without root)
 						_r_obj_initializestringref (&path_skip_root, PathSkipRootW (path->buffer));
@@ -2798,6 +2810,8 @@ NTSTATUS _FwpmGetAppIdFromFileName1 (
 						_r_obj_movereference (&original_path, _r_obj_concatstringrefs (2, &original_path->sr, &path_skip_root));
 
 						_r_str_tolower (&original_path->sr); // lower is important!
+
+						_r_obj_dereference (path_root);
 					}
 				}
 				else
